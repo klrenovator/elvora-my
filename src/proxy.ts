@@ -32,6 +32,11 @@ export function proxy(request: NextRequest) {
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
+    // The admin area is a single-language, owner-only tool with no translated
+    // URLs. Locale-prefixing it would send the owner to /en/admin, which does
+    // not exist, so it is excluded from language routing entirely.
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
     pathname === "/llms.txt" ||

@@ -3,7 +3,7 @@
 This file is the single source of truth for what has been built, what has been
 verified, and what comes next. Update it at the end of every working session.
 
-**Last updated:** Phase 2b completed (cart and checkout handoff).
+**Last updated:** Phase 2c completed (admin product management).
 
 ---
 
@@ -15,8 +15,8 @@ verified, and what comes next. Update it at the end of every working session.
 | 2 | E-commerce | 🔶 In progress |
 | 2a | Product model, product pages, manual pricing engine, variant/availability display | ✅ Complete |
 | 2b | Cart, checkout handoff, Malaysian address validation | ✅ Complete |
-| 2c | Admin product management screen (add/edit/publish/pricing) | ⬜ Next |
-| 2d | Payment provider integration (FPX / cards / DuitNow), order records | ⬜ Blocked on owner's merchant account |
+| 2c | Admin product management screen (add/edit/publish/pricing) | ✅ Complete (persistence decision pending) |
+| 2d | Payment provider integration (FPX / cards / DuitNow), order records | ⬜ Next — blocked on owner's merchant account |
 | 3 | Multilingual completion for commerce surfaces (cart, checkout, forms, admin) | ⬜ Blocked by Phase 2 |
 | 4 | Nationwide location SEO: Malaysia geo database, location pages, internal linking | ⬜ Not started |
 | 5 | Content marketing, AEO/GEO/LLMO assets, articles | ⬜ Deferred until Phase 2–4 |
@@ -258,35 +258,56 @@ should be eyeballed on a real device in the next session.
 
 ## Known gaps and deliberate deferrals
 
-1. **No products yet.** The catalogue model, product pages, variations and
-   manual pricing are Phase 2. This is the single biggest remaining block.
-2. **No cart, checkout, payments or orders.** Phase 2. Payment providers
-   (FPX/cards/DuitNow) need owner-supplied merchant accounts.
-3. **WhatsApp, phone and email are unset** in `src/lib/site.ts`. The UI detects
+1. **Catalogue edits do not persist yet.** The content is compiled into the
+   build and no database is connected, so the admin is read-only by design. The
+   repository interface and the UI are finished; connecting a database is the
+   remaining step (see "Open question").
+2. **No payments or orders.** Phase 2d. Payment providers (FPX/cards/DuitNow)
+   need owner-supplied merchant accounts. Nothing claims a payment path is live.
+3. **Images cannot be uploaded from the admin.** A product photo can only be
+   added in the repository, so publishing requires one to exist already. Upload
+   needs a storage bucket and is deliberately not faked.
+4. **The login rate limit is per instance and in memory.** It resets on
+   redeploy and is not shared between serverless instances. Adequate for a
+   single owner; documented rather than overbuilt.
+5. **WhatsApp, phone and email are unset** in `src/lib/site.ts`. The UI detects
    this and renders a "being finalised" notice instead of a dead link. Nothing
    invented.
-4. **Location pages not built.** The geo database and page architecture are
+6. **Location pages not built.** The geo database and page architecture are
    Phase 4; building them before products exist would produce thin pages.
-5. **OG image** currently reuses the hero photograph; a dedicated 1200×630
+7. **OG image** currently reuses the hero photograph; a dedicated 1200×630
    branded banner is pending (image generation limit reached this turn).
-6. **No analytics or consent banner yet.** Phase 6.
-7. **No Vietnamese/other locales** — intentionally exactly three.
+8. **No analytics or consent banner yet.** Phase 6.
+9. **No Vietnamese/other locales** — intentionally exactly three.
+
+---
+
+## Open question — catalogue persistence
+
+The admin UI, validation and authorisation are complete and verified. What is
+**not** decided is where saved products live. Two honest options:
+
+| Option | What it means | Cost | Trade-off |
+| --- | --- | --- | --- |
+| **A. Keep compiled content** | Owner edits `src/content/products.ts`, commits, redeploys. The `/admin` screen stays a review-and-validate tool. | Free | Every price change is a deploy; no non-technical editing. |
+| **B. Connect Vercel Postgres / Neon** | Implement `PostgresProductRepository`, set `DATABASE_URL`. The admin becomes a real CMS. | ~$0–20/month at this scale | A managed database to back up and maintain. |
+
+Nothing further is blocked by this except the write path itself: the storefront,
+cart and checkout read through the same interface, so either choice is a
+one-file change. **Recommendation: option B**, because the whole point of the
+Phase 2c screen is to let the owner change a price without a developer. This
+needs the owner's decision on hosting cost.
 
 ---
 
 ## Next task
 
-**Phase 2c — admin product management.**
+**Phase 2d — payment integration.** Blocked until the owner supplies a merchant
+account (FPX / cards / DuitNow). Until then `/checkout` deliberately ends at an
+honest "payment not yet live" state rather than a fake success page.
 
-1. Add authentication (single-owner login) with a signed session cookie and
-   rate-limited login, no third-party account provider.
-2. Build `/admin/products`: list, filter by category/status, and create/edit.
-3. Edit every field the model already supports — including **manual price entry**,
-   which must be the only way a price is ever set. The admin form should make
-   "price on request" a deliberate choice rather than a default.
-4. Guard against the mistakes the catalogue validator already catches, so the
-   owner sees the error in the form rather than in a failed build.
-5. Decide the persistence question explicitly: the current catalogue is
-   compiled-in TypeScript. Either move to a database (Vercel Postgres / Neon)
-   or keep file-based content with a documented edit workflow. This choice
-   should be made with the owner, because it determines hosting cost.
+Work that can proceed without a merchant account:
+1. Order records and an order-number scheme, so a paid order has somewhere to go.
+2. Server-side re-pricing at checkout (never trust a client total).
+3. A provider-agnostic payment interface, mirroring the repository pattern, so
+   the provider is a single implementation once credentials exist.
