@@ -23,7 +23,7 @@ falling back to English.
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm test            # 933 assertions across 17 suites
+npm test            # 1002 assertions across 18 suites
 npm run verify      # typecheck + lint + tests + build, in one command
 npm run build       # production build, all routes pre-rendered
 ```
@@ -119,8 +119,26 @@ but the customer had no cash" and "cancelled before dispatch" are both an order
 that is not `paid`, but one is money owed to you and the other is nothing. An
 owner reconciling a cash-up needs to tell those apart.
 
+### Fulfilling an order
+
+`/admin/orders` is the list — who, where, how much. Opening a reference gives the
+**packing view** at `/admin/orders/[reference]`:
+
+- the **full delivery address**: both street lines, postcode, city, state, and
+  any delivery notes the customer wrote
+- every line with its **variant id and SKU**, because two variants of one
+  product share a name and a packer cannot pick between them from a name
+- the payment state in words that say whether money is still owed
+- **Mark paid** / **Cancel**, and nothing at all once the order is settled
+
+Delivery cost shows as *"Quoted before dispatch"* rather than RM 0.00, because
+the shop has never published a shipping rate and zero would claim delivery is
+free. The page reads only what the order recorded — nothing is recomputed from
+the current catalogue, so a price edited later cannot rewrite what the customer
+agreed to.
+
 **Settling is deliberate.** An order becomes `paid` only when the owner presses
-**Mark paid** in `/admin/orders`, once the cash is actually in hand. The amount
+**Mark paid**, once the cash is actually in hand. The amount
 recorded is the order's own total, read from the stored order — never a figure
 typed into a form, which is what stops a RM 498 order being settled for RM 1. An
 order with no price cannot be settled, because there is no amount to record and

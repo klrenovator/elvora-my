@@ -47,7 +47,7 @@ export default async function AdminOrdersPage() {
       </div>
       <p className="mt-1 text-[0.8125rem] text-[color:var(--color-ink-muted)]">
         {orders.length} recorded · {outstanding.length} open · {awaitingCash.length} cash due on
-        delivery · {settled.length} paid
+        delivery · {settled.length} paid · open a reference to see the full delivery details
       </p>
 
       {!durable ? (
@@ -90,8 +90,13 @@ export default async function AdminOrdersPage() {
           <tbody>
             {orders.map((order) => (
               <tr key={order.reference} className="border-b border-[color:var(--color-line)] last:border-0 align-top">
-                <td className="px-4 py-3 font-medium tracking-[0.04em] text-[color:var(--color-ink-strong)]">
-                  {order.reference}
+                <td className="px-4 py-3 font-medium tracking-[0.04em]">
+                  <Link
+                    href={`/admin/orders/${encodeURIComponent(order.reference)}`}
+                    className="text-[color:var(--color-ink-strong)] underline decoration-[color:var(--color-line-strong)] underline-offset-4 transition-colors hover:text-[color:var(--color-cognac)]"
+                  >
+                    {order.reference}
+                  </Link>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-[color:var(--color-ink-body)]">
                   {formatDate(order.createdAt)}
