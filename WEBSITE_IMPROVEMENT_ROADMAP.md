@@ -43,6 +43,42 @@ product page before launch. The page already says this publicly.
 
 ---
 
+### E7. Warranty policy ✅ **done this phase**
+
+**Why:** the owner approved a workmanship warranty. The audit showed why it is
+worth publishing: **neither BONIA nor Braun Büffel publishes any workmanship
+warranty at all** — both offer only a 30-day return window and a faulty-item
+channel. Bellroy offers 3 years on wallets, Mackenzie & George a lifetime
+workmanship guarantee. Twelve months therefore sits clearly ahead of the two
+Malaysian competitors while remaining a promise a small workshop can honour.
+
+**Terms, as agreed:** 12 months · covers stitching and hardware failure ·
+repair first, replacement where repair is not possible · customer pays the
+inbound postage, we pay the return.
+
+**What shipped:** `/en/warranty`, `/ms/jaminan`, `/zh/bao-xiu` — coverage,
+exclusions, remedy, who pays delivery, how to claim, six FAQs, and a note that
+the warranty sits on top of statutory consumer rights. The same terms now appear
+as a summary above the buy controls on **every product page**, linked to the
+policy.
+
+**One source of truth:** the terms live in `src/content/warranty.ts`. The policy
+page, the product page and the tests all read from it, so they cannot drift.
+`tests/warranty.test.ts` (43 assertions) checks the duration appears in every
+language, that exclusions still cover normal wear, water damage and any load
+figure, that no "lifetime" or "waterproof" promise crept in, that the date
+arithmetic survives a 31 January start, and that the product page does not
+hard-code its own number.
+
+**Deliberately excluded:** any load, pull or tensile rating. There is no
+manufacturer test report, so there is nothing for a claim to be measured against.
+The warranty FAQ says so in plain words.
+
+⚠ **Owner action:** the returns policy still says the return window is "shown on
+your order confirmation". If a fixed window is wanted (competitors use 14–30
+days), it is a one-line change in `pages-policy.ts` — but it should match what
+the order confirmation actually says.
+
 ### E2. Product page: lead with specification, not adjectives 🔜
 
 **Why:** Bellroy's product cards state what the object **holds** — "5–12+ cards,
@@ -106,7 +142,7 @@ Being clear about the absence of tracking is better than an empty tracker.
 | O5 | Care page per material | Verb-tan versus chrome behaves differently in Malaysian humidity. | Only if the maker documents the tanning method. Otherwise omit. |
 | O6 | "How to measure" diagram | One illustration would beat paragraphs. | Needs original artwork. **Do not copy a competitor's diagram.** |
 | O7 | Gift messaging field | Aspinal and Leatherology both lead with gifting. | Checkout change; affects order schema. Defer past Phase 4. |
-| O8 | Warranty statement | Bellroy's tiered model is the right shape. | **Owner decision.** A warranty is a contractual promise. |
+| O8 | Warranty statement | ✅ **Done — see E7.** | — |
 | O9 | Returns window statement | Mackenzie & George offer 90 days free. | **Owner decision.** |
 | O10 | Review collection | Dogs & Horses shows 2,373 reviews. | Needs a provider and moderation. Not worth it before sales exist. |
 
@@ -149,14 +185,15 @@ RM69.44 crossover point.
 
 ## Suggested order of work
 
-1. ✅ Sizing guide (E1) — done.
-2. **E2 specification block** — highest value per hour, no new data.
-3. **E4 material honesty block** — our only real differentiator.
-4. **E3 belt guidance** — closes the second sizing gap.
-5. **E6 order tracking clarity** — small, removes a support question.
-6. E5 when the owner supplies contact details.
-7. Optional tier as the owner chooses.
-8. Phase D only after its prerequisites are met.
+1. ✅ Sizing guide (E1) — done, now derived from the catalogue.
+2. ✅ Warranty (E7) — done.
+3. **E2 specification block** — highest value per hour, no new data.
+4. **E4 material honesty block** — our only real differentiator.
+5. **E3 belt guidance** — closes the second sizing gap.
+6. **E6 order tracking clarity** — small, removes a support question.
+7. E5 when the owner supplies contact details.
+8. Optional tier as the owner chooses.
+9. Phase D only after its prerequisites are met.
 
 ---
 
@@ -169,6 +206,7 @@ Not traffic — traffic is a lagging and noisy signal for a store with no orders
 | Products with a complete specification block | 100% of published |
 | Products claiming a grade not in the catalogue record | 0 — test-enforced |
 | Sizing or fit guidance published for every sized category | 3 of 3 (collars ✅, belts 🔜, bags n/a) |
+| Warranty published, and identical on the policy page and every product page | ✅ test-enforced |
 | Invented prices, rates, couriers or contact details on the site | 0 — test-enforced |
 | Languages with complete, non-machine-translated copy | 3 of 3 |
 | Dead internal links | 0 — build fails |

@@ -1,5 +1,6 @@
 import type { Locale } from "@/i18n/config";
 import type { Block, ContentPage } from "@/content/pages-core";
+import { products } from "@/content/products";
 
 /**
  * Dog collar and lead sizing guide.
@@ -32,7 +33,7 @@ export interface SizingCopy {
   metaDescription: Record<Locale, string>;
   intro: Record<Locale, string>;
   tableHeading: Record<Locale, string>;
-  columns: Record<Locale, { width: string; range: string; inches: string; suits: string }>;
+  columns: Record<Locale, { size: string; range: string; inches: string; suits: string }>;
   blocks: Record<Locale, Block[]>;
   /** Owner action, shown as an honest note rather than hidden. */
   confirmStock: Record<Locale, string>;
@@ -50,21 +51,76 @@ export function formatInches(cm: number): string {
 }
 
 /**
- * Neck bands. The nearest-centimetre boundaries are chosen so the guidance is
- * usable with an ordinary tailor's tape, which is what most customers own.
+ * The collar sizes we actually sell, derived from the catalogue rather than
+ * retyped here.
  *
- * These are guidance bands for measuring a neck, not a claim about any single
- * product's leather length. `confirmStock` says so on the page itself.
+ * This matters more than it looks. An earlier draft of this page carried generic
+ * guidance bands that did not match the S/M/L neck ranges printed on the product
+ * pages (25–32, 32–40, 40–50 cm). A sizing guide that disagrees with the product
+ * it explains creates wrong orders instead of preventing them, so the rows are
+ * now read from `products` and `tests/dog-sizing.test.ts` fails if the two drift
+ * apart.
+ *
+ * Strap width is not recorded per collar in the catalogue, so the table does not
+ * invent one: width is explained in prose as a comfort choice instead.
  */
-export const collarSizes: SizeRow[] = [
-  { width: 15, minCm: 20, maxCm: 28, suits: { en: "Toy and small breeds", ms: "Baka mainan dan kecil", zh: "玩具犬与小型犬" } },
-  { width: 15, minCm: 26, maxCm: 34, suits: { en: "Small breeds", ms: "Baka kecil", zh: "小型犬" } },
-  { width: 20, minCm: 30, maxCm: 40, suits: { en: "Small to medium", ms: "Kecil hingga sederhana", zh: "小型至中型" } },
-  { width: 20, minCm: 36, maxCm: 46, suits: { en: "Medium breeds", ms: "Baka sederhana", zh: "中型犬" } },
-  { width: 25, minCm: 42, maxCm: 52, suits: { en: "Medium to large", ms: "Sederhana hingga besar", zh: "中型至大型" } },
-  { width: 25, minCm: 48, maxCm: 58, suits: { en: "Large breeds", ms: "Baka besar", zh: "大型犬" } },
-  { width: 25, minCm: 55, maxCm: 66, suits: { en: "Very large breeds", ms: "Baka sangat besar", zh: "超大型犬" } },
-];
+export const collarSizes: CatalogueSizeRow[] = catalogueCollarSizes();
+
+/** Catalogue-derived rows, with the size id kept for linking and tests. */
+export interface CatalogueSizeRow extends SizeRow {
+  /** Catalogue size id, e.g. "m". */
+  sizeId: string;
+  /** Size label as printed on the product page, e.g. "M · Neck 32–40 cm". */
+  label: string;
+}
+
+function catalogueCollarSizes(): CatalogueSizeRow[] {
+  const seen = new Map<string, CatalogueSizeRow>();
+
+  for (const product of products) {
+    if (product.category !== "dog-collars" && product.category !== "dog-collar-leash-sets") continue;
+
+    for (const option of product.sizes) {
+      // "M · Neck 32–40 cm" — the range is the only part that carries a number.
+      const match = option.label.match(/(\d+(?:\.\d+)?)\s*[–-]\s*(\d+(?:\.\d+)?)\s*cm/);
+      if (!match) continue;
+
+      const minCm = Number(match[1]);
+      const maxCm = Number(match[2]);
+      if (!Number.isFinite(minCm) || !Number.isFinite(maxCm) || maxCm <= minCm) continue;
+
+      const key = `${option.id}-${minCm}-${maxCm}`;
+      if (seen.has(key)) continue;
+
+      seen.set(key, {
+        sizeId: option.id,
+        label: option.label,
+        // Width is unknown per product; 0 means "not stated", never a made-up figure.
+        width: 0,
+        minCm,
+        maxCm,
+        suits: collarSizeSuits(maxCm),
+      });
+    }
+  }
+
+  return [...seen.values()].sort((a, b) => a.minCm - b.minCm || a.maxCm - b.maxCm);
+}
+
+/**
+ * A plain description of the neck range. Deliberately not a breed table: breed
+ * size varies too much to be dependable, which is the whole argument the page
+ * makes.
+ */
+function collarSizeSuits(maxCm: number): Record<Locale, string> {
+  if (maxCm <= 33) {
+    return { en: "Smaller necks", ms: "Leher lebih kecil", zh: "较小颈围" };
+  }
+  if (maxCm <= 42) {
+    return { en: "Medium necks", ms: "Leher sederhana", zh: "中等颈围" };
+  }
+  return { en: "Larger necks", ms: "Leher lebih besar", zh: "较大颈围" };
+}
 
 /**
  * The band a measured neck falls into, preferring the size where the neck sits
@@ -115,14 +171,14 @@ export const dogSizingPage: ContentPage & SizingCopy = {
     zh: "颈围尺寸区间",
   },
   columns: {
-    en: { width: "Strap width", range: "Neck range", inches: "In inches", suits: "Usually suits" },
-    ms: { width: "Lebar tali", range: "Julat leher", inches: "Dalam inci", suits: "Biasanya sesuai untuk" },
-    zh: { width: "皮带宽度", range: "颈围范围", inches: "英寸换算", suits: "通常适合" },
+    en: { size: "Size", range: "Neck range", inches: "In inches", suits: "Usually suits" },
+    ms: { size: "Saiz", range: "Julat leher", inches: "Dalam inci", suits: "Biasanya sesuai untuk" },
+    zh: { size: "尺码", range: "颈围范围", inches: "英寸换算", suits: "通常适合" },
   },
   confirmStock: {
-    en: "The bands below are guidance for measuring a neck. The adjustment range of each collar we sell depends on the strap length and where the buckle sits, so it is confirmed against stock before launch and stated on each product page. If your dog measures close to a boundary, ask us and we will check the actual strap for you.",
-    ms: "Julat di bawah ialah panduan untuk mengukur leher. Julat larasan setiap kolar yang kami jual bergantung pada panjang tali dan kedudukan gesper, jadi ia disahkan dengan stok sebelum pelancaran dan dinyatakan pada setiap halaman produk. Jika anjing anda hampir dengan sempadan, tanyakan kepada kami dan kami akan menyemak tali sebenar untuk anda.",
-    zh: "以下区间是量度颈围的参考。我们销售的每个项圈可调节范围取决于皮带长度和扣件位置，因此在正式上线前会按库存核实，并在每个产品页面注明。如果你的狗狗尺寸接近分界线，请告诉我们，我们会为你核对实际皮带长度。",
+    en: "The ranges below are the neck ranges of the collars we sell, and they match the size options on each product page. They describe the adjustment the strap offers, not the size of the dog. If your dog measures close to a boundary between two sizes, take the larger one — a collar that sits mid-range wears and looks better than one tightened to its last hole.",
+    ms: "Julat di bawah ialah julat leher kolar yang kami jual, dan ia sepadan dengan pilihan saiz pada setiap halaman produk. Ia menerangkan larasan yang ditawarkan tali, bukan saiz anjing. Jika anjing anda hampir dengan sempadan antara dua saiz, ambil yang lebih besar — kolar yang berada di pertengahan julat lebih elok dipakai dan kelihatan lebih baik daripada yang diketatkan hingga lubang terakhir.",
+    zh: "以下区间是我们所售项圈的颈围范围，与每个产品页面的尺码选项一致。这些数字说明皮带提供的可调空间，而不是狗的大小。如果测量值正好落在两个尺码之间，请选择较大的一款——位于调节范围中段的项圈，佩戴效果和外观都优于收到最后一个孔的项圈。",
   },
   blocks: {
     en: [
@@ -147,10 +203,10 @@ export const dogSizingPage: ContentPage & SizingCopy = {
         type: "p",
         text: "A collar should be loose enough to slide two fingers under it at the top of the neck, and snug enough that it cannot be pulled over the head. For a full-grown dog, roughly two centimetres of adjustment remaining on either side of the buckle is comfortable. A collar tightened to its final hole is not the right size, even if it fastens.",
       },
-      { type: "h", text: "Choosing a strap width" },
+      { type: "h", text: "Strap width, and why it is not a rating" },
       {
         type: "p",
-        text: "A wider strap spreads the pressure of a lead across a larger area of the neck, which matters more on a strong dog than on a small one. A 15 mm strap suits a small dog; 20 mm is the usual middle ground; 25 mm is for medium and large dogs. Width is a comfort and control choice — it is not a rating, and we do not publish a load or pull capacity for any collar because we have no manufacturer test report to support one.",
+        text: "A wider strap spreads the pressure of a lead across a larger area of the neck, which matters more on a strong dog than on a small one. Width is a comfort and control choice. It is not a strength rating, and we do not publish a load or pull capacity for any collar, because we have no manufacturer test report that would support one. Where a collar's strap width is recorded, it is stated on that product's page.",
       },
       { type: "h", text: "Check the fit when it arrives" },
       {
@@ -194,10 +250,10 @@ export const dogSizingPage: ContentPage & SizingCopy = {
         type: "p",
         text: "Kolar harus cukup longgar untuk dua jari masuk di bahagian atas leher, dan cukup ketat supaya tidak boleh ditarik melepasi kepala. Untuk anjing dewasa, kira-kira dua sentimeter baki larasan pada setiap sisi gesper adalah selesa. Kolar yang diketatkan hingga lubang terakhir bukan saiz yang betul, walaupun ia boleh dikancing.",
       },
-      { type: "h", text: "Memilih lebar tali" },
+      { type: "h", text: "Lebar tali, dan mengapa ia bukan penarafan" },
       {
         type: "p",
-        text: "Tali yang lebih lebar menyebarkan tekanan tali cawak ke kawasan leher yang lebih luas, dan ini lebih penting pada anjing kuat berbanding anjing kecil. Tali 15 mm sesuai untuk anjing kecil; 20 mm ialah pilihan pertengahan yang biasa; 25 mm untuk anjing sederhana dan besar. Lebar ialah pilihan keselesaan dan kawalan — ia bukan penarafan, dan kami tidak menerbitkan had beban atau kapasiti tarikan untuk mana-mana kolar kerana kami tiada laporan ujian pengilang yang menyokongnya.",
+        text: "Tali yang lebih lebar menyebarkan tekanan tali cawak ke kawasan leher yang lebih luas, dan ini lebih penting pada anjing kuat berbanding anjing kecil. Lebar ialah pilihan keselesaan dan kawalan. Ia bukan penarafan kekuatan, dan kami tidak menerbitkan had beban atau kapasiti tarikan untuk mana-mana kolar, kerana kami tiada laporan ujian pengilang yang menyokongnya. Jika lebar tali sesebuah kolar direkodkan, ia dinyatakan pada halaman produk tersebut.",
       },
       { type: "h", text: "Semak kesesuaian apabila ia tiba" },
       {
@@ -241,10 +297,10 @@ export const dogSizingPage: ContentPage & SizingCopy = {
         type: "p",
         text: "项圈应在颈部上方能塞进两根手指，同时紧到无法从头上脱出。成年犬在扣件两侧各留约两厘米的调节余量比较舒适。必须扣到最后一个孔才合用的项圈，并不是合适的尺寸。",
       },
-      { type: "h", text: "如何选择皮带宽度" },
+      { type: "h", text: "关于皮带宽度" },
       {
         type: "p",
-        text: "较宽的皮带能把牵引绳的压力分散到更大的颈部面积，这对力气大的狗比对小型犬更重要。15 毫米适合小型犬；20 毫米是常见的中庸选择；25 毫米适合中型与大型犬。宽度是舒适度与控制力的选择——它不是规格等级。我们没有针对任何项圈公布承重或拉力数值，因为目前没有可依据的厂家测试报告。",
+        text: "较宽的皮带能把牵引绳的压力分散到更大的颈部面积，这对力气大的狗比对小型犬更重要。宽度是舒适度与控制力的选择，而不是强度等级。我们没有针对任何项圈公布承重或拉力数值，因为目前没有可依据的厂家测试报告。若某款项圈记录了皮带宽度，会在该产品页面注明。",
       },
       { type: "h", text: "收到后如何检查是否合适" },
       {

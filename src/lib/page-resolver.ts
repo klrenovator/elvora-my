@@ -9,6 +9,7 @@ import {
   type ContentPage,
 } from "@/content/pages-core";
 import { dogSizingPage } from "@/content/pages-sizing";
+import { warrantyPage } from "@/content/pages-warranty";
 import {
   faqPage,
   privacyPage,
@@ -27,6 +28,7 @@ export const pageRouteKeys: Record<PageKey, string> = {
   "leather-guide": "leatherGuide",
   "care-guide": "careGuide",
   "dog-sizing": "dogSizing",
+  warranty: "warranty",
   privacy: "privacy",
   terms: "terms",
 };
@@ -40,6 +42,7 @@ export const contentPages: Record<PageKey, ContentPage> = {
   "leather-guide": leatherGuidePage,
   "care-guide": careGuidePage,
   "dog-sizing": dogSizingPage,
+  warranty: warrantyPage,
   privacy: privacyPage,
   terms: termsPage,
 };

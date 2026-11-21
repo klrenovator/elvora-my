@@ -21,6 +21,7 @@ import {
   cmToInches,
   formatInches,
 } from "@/content/pages-sizing";
+import { products } from "@/content/products";
 import { locales } from "@/i18n/config";
 import { matchPath, pathFor, alternatePaths } from "@/lib/routes";
 import { contentPages, assertUniqueSlugs } from "@/lib/page-resolver";
@@ -66,8 +67,55 @@ check("consecutive ranges overlap, so there is no gap a neck can fall into", () 
 check("no range exceeds 12 cm, which would make the guidance meaningless", () =>
   collarSizes.every((row) => row.maxCm - row.minCm <= 12));
 
-check("strap widths are one of the three values the page explains", () =>
-  collarSizes.every((row) => [15, 20, 25].includes(row.width)));
+/**
+ * The whole point of deriving the table from the catalogue: if someone edits a
+ * collar's neck range in `products.ts` and forgets this page, the shop starts
+ * giving wrong sizing advice. That is a build failure, not a support ticket.
+ */
+check("every size in the table exists in the catalogue with the same range", () => {
+  const catalogue = new Set<string>();
+  for (const product of products) {
+    if (product.category !== "dog-collars" && product.category !== "dog-collar-leash-sets") continue;
+    for (const option of product.sizes) {
+      const match = option.label.match(/(\d+(?:\.\d+)?)\s*[–-]\s*(\d+(?:\.\d+)?)\s*cm/);
+      if (match) catalogue.add(`${option.id}-${match[1]}-${match[2]}`);
+    }
+  }
+  return collarSizes.every((row) => catalogue.has(`${row.sizeId}-${row.minCm}-${row.maxCm}`));
+});
+
+check("no catalogue collar size is missing from the table", () => {
+  const table = new Set(collarSizes.map((row) => `${row.sizeId}-${row.minCm}-${row.maxCm}`));
+  for (const product of products) {
+    if (product.category !== "dog-collars" && product.category !== "dog-collar-leash-sets") continue;
+    for (const option of product.sizes) {
+      const match = option.label.match(/(\d+(?:\.\d+)?)\s*[–-]\s*(\d+(?:\.\d+)?)\s*cm/);
+      if (match && !table.has(`${option.id}-${match[1]}-${match[2]}`)) return false;
+    }
+  }
+  return true;
+});
+
+check("the table is not empty, so a category rename cannot silently blank it", () =>
+  collarSizes.length >= 3);
+
+check("the collar-and-leash set uses the same ranges as the collar it contains", () => {
+  const collar = new Map(
+    collarSizes.map((row) => [row.sizeId, `${row.minCm}-${row.maxCm}`]),
+  );
+  const sets = products.filter((p) => p.category === "dog-collar-leash-sets");
+  for (const set of sets) {
+    for (const option of set.sizes) {
+      const match = option.label.match(/Collar (\d+)[–-](\d+) cm/);
+      if (!match) continue;
+      if (collar.get(option.id) !== `${match[1]}-${match[2]}`) return false;
+    }
+  }
+  return true;
+});
+
+check("no width is invented for a collar", () =>
+  collarSizes.every((row) => row.width === 0));
 
 check("every size has a description in all three languages", () =>
   collarSizes.every((row) => locales.every((locale) => row.suits[locale].trim().length > 2)));
@@ -232,8 +280,10 @@ check("the page warns against tightening a collar to force a fit", () =>
 check("the chart is explicitly flagged as needing confirmation against stock", () =>
   locales.every((locale) => dogSizingPage.confirmStock[locale].trim().length > 80));
 
-check("stock confirmation names the real dependency, not a vague promise", () =>
-  dogSizingPage.confirmStock.en.toLowerCase().includes("strap length"));
+// The note must tie the chart to the catalogue, not hedge about geometry that
+// is now known. If the ranges ever stop coming from the products, this fails.
+check("the chart note ties itself to the product pages", () =>
+  dogSizingPage.confirmStock.en.toLowerCase().includes("match the size options"));
 
 /* --------------------------- 5. Route wiring --------------------------- */
 
@@ -298,7 +348,7 @@ check("meta descriptions stay within a reasonable search snippet length", () =>
 check("the table has column headings in every language", () =>
   locales.every((locale) => {
     const cols = dogSizingPage.columns[locale];
-    return cols.width && cols.range && cols.inches && cols.suits;
+    return cols.size && cols.range && cols.inches && cols.suits;
   }));
 
 console.log(`\n  ${pass} passed, ${fail} failed`);
