@@ -16,7 +16,7 @@ import { Breadcrumbs, CategoryCard, categoryRoutes } from "@/components/category
 import { FaqAccordion } from "@/components/faq-accordion";
 import { ProductCard } from "@/components/product-card";
 import { CartView } from "@/components/cart-view";
-import { productsByCategory } from "@/content/products";
+import { catalogueForStorefront } from "@/lib/catalogue/storefront";
 import { Container, Eyebrow, Rule } from "@/components/ui";
 import { PageBlocks, RelatedCategories } from "@/lib/content-page";
 import {
@@ -154,7 +154,7 @@ function CartPageView({ locale }: { locale: Locale }) {
 
 /* ------------------------------- Category ------------------------------- */
 
-function CategoryView({
+async function CategoryView({
   locale,
   categoryId,
 }: {
@@ -164,7 +164,11 @@ function CategoryView({
   const dict = getDictionary(locale);
   const category = categories.find((item) => item.id === categoryId)!;
   const faqs = category.faqs[locale];
-  const products = productsByCategory(category.id);
+  // Read the live catalogue so a product published in the admin appears on its
+  // category page within the revalidation window.
+  const products = (await catalogueForStorefront()).filter(
+    (product) => product.category === category.id,
+  );
   const others = categories.filter((item) => item.id !== category.id).slice(0, 4);
   const path = pathFor(categoryRoutes[category.id], locale);
 

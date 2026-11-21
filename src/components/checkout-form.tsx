@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import { getDictionary } from "@/lib/dictionary";
@@ -18,15 +18,20 @@ import {
 import { features } from "@/lib/features";
 import { useCart } from "@/components/cart-provider";
 import type { ReconciledLine } from "@/lib/cart-store";
+import { placeOrder, type CheckoutState } from "@/app/[locale]/checkout/actions";
 
 /**
  * Guest checkout.
  *
- * Payment is deliberately not connected (see `features.payments`). Until it is,
- * this form validates the delivery details and then produces an order summary
- * the customer can send to us. Nothing is submitted to a server and no payment
- * is taken, and the page says exactly that rather than implying a completed
- * order.
+ * The form submits to a server action which re-validates the address and
+ * re-prices every line from the catalogue before recording an order. The total
+ * shown here is compared against the server's figure, never used as the
+ * authority — if they disagree the order is refused and the customer is sent
+ * back to the cart.
+ *
+ * Payment is still not connected (see `features.payments`), so a recorded order
+ * is `pending-payment`: a real, stored record of intent with a reference the
+ * customer can quote. No payment is taken and the confirmation says so.
  */
 export function CheckoutForm({ locale }: { locale: Locale }) {
   const dict = getDictionary(locale);
@@ -48,16 +53,52 @@ export function CheckoutForm({ locale }: { locale: Locale }) {
     });
   }
 
+  const [pending, startTransition] = useTransition();
+  const [serverError, setServerError] = useState<string | undefined>();
+  const [reference, setReference] = useState<string | undefined>();
+  const [durable, setDurable] = useState(false);
+
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+
+    // Validate locally first: it saves a round trip and puts the message beside
+    // the field. The server validates again, because this is only a courtesy.
     const found = validateAddress(address, locale);
     setErrors(found);
     if (hasErrors(found)) {
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    setServerError(undefined);
+
+    const formData = new FormData();
+    formData.set("locale", locale);
+    for (const [key, value] of Object.entries(address)) formData.set(key, value);
+    // Only orderable lines are submitted. Lines with issues are blocked from
+    // checkout by the cart already; sending them would invite a server refusal.
+    formData.set(
+      "lines",
+      reconciled.lines
+        .filter((entry) => entry.orderable)
+        .map((entry) => `${entry.line.productId}|${entry.line.variantId}|${entry.line.quantity}`)
+        .join("\n"),
+    );
+    formData.set("subtotalSen", String(reconciled.subtotalSen));
+
+    startTransition(async () => {
+      const result: CheckoutState = await placeOrder({}, formData);
+      if (result.ok && result.reference) {
+        setReference(result.reference);
+        setDurable(Boolean(result.durable));
+        setSubmitted(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      if (result.fieldErrors) setErrors(result.fieldErrors as AddressErrors);
+      setServerError(result.error ?? dict.checkout.orderFailed);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
   }
 
   if (!hydrated) {
@@ -109,9 +150,23 @@ export function CheckoutForm({ locale }: { locale: Locale }) {
           <h2 className="font-display text-[1.5rem] leading-tight text-[color:var(--color-ink-strong)]">
             {dict.checkout.successTitle}
           </h2>
+          {reference ? (
+            <p className="mt-3 text-[0.9375rem] text-[color:var(--color-ink-strong)]">
+              {dict.checkout.orderReference}:{" "}
+              <strong className="font-medium tracking-[0.06em]">{reference}</strong>
+            </p>
+          ) : null}
           <p className="mt-2 text-[0.875rem] leading-relaxed text-[color:var(--color-ink-body)]">
             {dict.checkout.successBody}
           </p>
+          <p className="mt-3 text-[0.8125rem] leading-relaxed text-[color:var(--color-cognac-deep)]">
+            {dict.checkout.paymentPending}
+          </p>
+          {!durable ? (
+            <p className="mt-2 text-[0.75rem] leading-relaxed text-[color:var(--color-mist)]">
+              {dict.checkout.storageNotDurable}
+            </p>
+          ) : null}
         </div>
 
         <pre className="mt-6 max-h-96 overflow-auto whitespace-pre-wrap border border-[color:var(--color-line)] bg-white p-4 text-[0.8125rem] leading-relaxed text-[color:var(--color-ink-body)] thin-scroll">
@@ -159,6 +214,8 @@ export function CheckoutForm({ locale }: { locale: Locale }) {
       onSubmit={handleSubmit}
       lines={reconciled.lines}
       subtotalSen={reconciled.subtotalSen}
+      serverError={serverError}
+      pending={pending}
     />
   );
 }
@@ -177,6 +234,8 @@ export function CheckoutFields({
   onSubmit,
   lines,
   subtotalSen,
+  serverError,
+  pending,
 }: {
   locale: Locale;
   address: AddressInput;
@@ -185,12 +244,25 @@ export function CheckoutFields({
   onSubmit: (event: React.FormEvent) => void;
   lines: ReconciledLine[];
   subtotalSen: number;
+  /** Refusal from the server action, shown above the form. */
+  serverError?: string;
+  /** True while the server action is in flight. */
+  pending?: boolean;
 }) {
   const dict = getDictionary(locale);
 
   return (
     <form onSubmit={onSubmit} noValidate className="grid gap-12 lg:grid-cols-12 lg:gap-16">
       <div className="lg:col-span-7">
+        {serverError ? (
+          <p
+            role="alert"
+            className="mb-4 border-l-2 border-[#a8442c] bg-white px-4 py-3 text-[0.8125rem] leading-relaxed text-[#a8442c]"
+          >
+            {serverError}
+          </p>
+        ) : null}
+
         <p className="border-l-2 border-[color:var(--color-cognac)] bg-[color:var(--color-cream)]/70 px-4 py-3 text-[0.8125rem] leading-relaxed text-[color:var(--color-ink-body)]">
           {dict.checkout.guestNote}
         </p>
@@ -397,9 +469,14 @@ export function CheckoutFields({
 
           <button
             type="submit"
-            className="mt-5 flex h-12 w-full items-center justify-center bg-[color:var(--color-espresso)] px-6 text-[0.75rem] font-medium tracking-[0.16em] uppercase text-[color:var(--color-ivory)] transition-colors hover:bg-[color:var(--color-cognac-deep)]"
+            disabled={pending}
+            className="mt-5 flex h-12 w-full items-center justify-center bg-[color:var(--color-espresso)] px-6 text-[0.75rem] font-medium tracking-[0.16em] uppercase text-[color:var(--color-ivory)] transition-colors hover:bg-[color:var(--color-cognac-deep)] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {features.payments ? dict.checkout.placeOrder : dict.checkout.orderEnquiry}
+            {pending
+              ? dict.checkout.placingOrder
+              : features.payments
+                ? dict.checkout.placeOrder
+                : dict.checkout.orderEnquiry}
           </button>
 
           <p className="mt-4 text-[0.6875rem] leading-relaxed text-[color:var(--color-mist)]">

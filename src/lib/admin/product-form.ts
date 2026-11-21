@@ -15,6 +15,16 @@ import { categories } from "@/content/categories";
  *    deploy hours later.
  */
 
+export interface ProductImageValue {
+  /** Public URL, or a repository path for an image committed to /public. */
+  src: string;
+  altEn: string;
+  altMs: string;
+  altZh: string;
+  /** True while the image is a temporary illustration rather than a photo. */
+  placeholder: boolean;
+}
+
 export interface ProductFormValues {
   id: string;
   category: string;
@@ -46,9 +56,14 @@ export interface ProductFormValues {
   sku: string;
   stock: string;
 
-  /** Whether at least one photo is attached. Read-only in this release: images
-   *  are added through the media step, not by typing a path. */
-  hasImage: boolean;
+  /**
+   * Images, as URLs plus per-language alt text.
+   *
+   * Managed by the media panel (upload / remove) rather than typed in, and
+   * validated on the server before any of them reach a product. `hasImage` and
+   * `imageCount` are derived from this in the form so the two cannot disagree.
+   */
+  images: ProductImageValue[];
 
   featured: boolean;
   newArrival: boolean;
@@ -86,7 +101,7 @@ export const emptyProductForm: ProductFormValues = {
   compareAtAmount: "",
   sku: "",
   stock: "0",
-  hasImage: false,
+  images: [],
   featured: false,
   newArrival: false,
   bestseller: false,
@@ -162,7 +177,13 @@ export function productToForm(product: Product): ProductFormValues {
       price.kind === "fixed" && price.compareAtSen ? senToInput(price.compareAtSen) : "",
     sku: product.sku,
     stock: String(product.variants[0]?.stock ?? 0),
-    hasImage: product.images.length > 0,
+    images: product.images.map((image) => ({
+      src: image.src,
+      altEn: image.alt.en,
+      altMs: image.alt.ms,
+      altZh: image.alt.zh,
+      placeholder: image.placeholder,
+    })),
     featured: product.merchandising.featured,
     newArrival: product.merchandising.newArrival,
     bestseller: product.merchandising.bestseller,
@@ -256,8 +277,11 @@ export function validateProductForm(values: ProductFormValues): ProductFormError
 
   // Published products must be complete enough to be useful to a customer.
   if (values.status === "published") {
-    if (!values.hasImage) {
-      errors.hasImage = "A product photo is required before publishing. Save as a draft until you have one.";
+    if (values.images.length === 0) {
+      errors.images = "A product photo is required before publishing. Save as a draft until you have one.";
+    } else if (values.images.some((image) => !image.altEn.trim())) {
+      // Alt text is what a screen-reader user and a broken-image visitor sees.
+      errors.images = "Every image needs English alt text that describes it.";
     }
     if (!values.seoTitleEn.trim()) errors.seoTitleEn = "Required before publishing.";
     if (!values.seoTitleMs.trim()) errors.seoTitleMs = "Required before publishing.";
@@ -341,6 +365,15 @@ export function formToProduct(values: ProductFormValues, existing?: Product): Pr
       zh: description(values.descriptionZh),
     },
     price,
+    images: values.images.map((image) => ({
+      src: image.src,
+      alt: {
+        en: image.altEn.trim(),
+        ms: image.altMs.trim() || image.altEn.trim(),
+        zh: image.altZh.trim() || image.altEn.trim(),
+      },
+      placeholder: image.placeholder,
+    })),
     sku: values.sku.trim(),
     variants:
       base.variants.length > 0

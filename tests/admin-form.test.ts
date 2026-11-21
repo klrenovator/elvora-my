@@ -90,7 +90,9 @@ function validForm(overrides: Partial<ProductFormValues> = {}): ProductFormValue
     descriptionZh: "在马来西亚手工裁切与缝制。",
     sku: "ELV-TOTE-001",
     stock: "3",
-    hasImage: true,
+    images: [
+      { src: "/images/categories/mens-wallets.jpg", altEn: "A wallet", altMs: "Dompet", altZh: "钱包", placeholder: true },
+    ],
     ...overrides,
   };
 }
@@ -284,9 +286,9 @@ function seoFields(): Partial<ProductFormValues> {
 }
 
 {
-  const errors = validateProductForm(validForm({ status: "published", hasImage: false, ...seoFields() }));
-  check("publish without a photo rejected", Boolean(errors.hasImage));
-  check("draft without a photo allowed", !validateProductForm(validForm({ hasImage: false })).hasImage);
+  const errors = validateProductForm(validForm({ status: "published", images: [], ...seoFields() }));
+  check("publish without a photo rejected", Boolean(errors.images));
+  check("draft without a photo allowed", !validateProductForm(validForm({ images: [] })).images);
 }
 
 {

@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import type { Product } from "@/content/types";
+import { productById as seedProductById } from "@/content/products";
 import {
   acceptCurrentPrices,
   addLine,
@@ -42,6 +43,21 @@ interface CartContextValue {
 const CartContext = createContext<CartContextValue | null>(null);
 
 /**
+ * Build a lookup function over a catalogue supplied by the server.
+ *
+ * The cart must reconcile against the same prices the server will charge.
+ * Before a database existed the compiled seed was always correct; now an
+ * administrator can change a price, and a browser holding the old one would
+ * show a total that checkout then refuses. Passing the live catalogue down from
+ * the layout keeps the two in step.
+ */
+function lookupFrom(catalogue: Product[]): (id: string) => Product | undefined {
+  if (catalogue.length === 0) return seedProductById;
+  const byId = new Map(catalogue.map((product) => [product.id, product]));
+  return (id) => byId.get(id) ?? seedProductById(id);
+}
+
+/**
  * Cart provider.
  *
  * State lives in localStorage. Everything read back is treated as untrusted and
@@ -50,7 +66,14 @@ const CartContext = createContext<CartContextValue | null>(null);
  * from the live catalogue, so a tampered `addedPriceSen` cannot lower a price;
  * the worst it can do is trigger a visible "price changed" notice.
  */
-export function CartProvider({ children }: { children: React.ReactNode }) {
+export function CartProvider({
+  children,
+  catalogue = [],
+}: {
+  children: React.ReactNode;
+  /** Published products from the server, so prices match what checkout charges. */
+  catalogue?: Product[];
+}) {
   const [cart, setCart] = useState<Cart>(emptyCart);
   const [hydrated, setHydrated] = useState(false);
   const skipWrite = useRef(true);
@@ -94,7 +117,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  const reconciled = useMemo(() => reconcile(cart), [cart]);
+  const lookup = useMemo(() => lookupFrom(catalogue), [catalogue]);
+  const reconciled = useMemo(() => reconcile(cart, lookup), [cart, lookup]);
 
   const add = useCallback((product: Product, variantId: string, quantity = 1): AddResult => {
     let result: AddResult = { ok: false, reason: "variant-missing" };
