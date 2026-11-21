@@ -810,6 +810,35 @@ Free is fine for building and testing. For a shop taking real orders, the
 7-day pause and the absence of backups are both unacceptable, so **Pro is the
 recommendation before launch**. Nothing in the code depends on the plan.
 
+## Phase 4b — competitor research and its first applied change
+
+**Research date:** 2026-11-21. Six research documents added at the repository
+root, all internal, none customer-facing:
+
+- `COMPETITOR_DEEP_RESEARCH_AND_WEBSITE_IMPROVEMENT.md` — the specification
+- `COMPETITOR_COMPARISON_MATRIX.md` — 16 sites, evidence-labelled
+- `LEATHER_MATERIALS_AND_PRICING_RESEARCH.md` — grades, tanning, observed prices
+- `PET_LEATHER_PRODUCTS_RESEARCH.md` — the eight pet sites, sizing and safety
+- `MALAYSIA_DELIVERY_AND_COURIER_RESEARCH.md` — couriers, COD operations
+- `MALAYSIA_PAYMENT_AND_MERCHANT_RESEARCH.md` — verified gateway fees
+- `WEBSITE_IMPROVEMENT_ROADMAP.md` — prioritised actions
+
+**Applied to the site:** a dog collar sizing guide at
+`/en/dog-collar-sizing`, `/ms/panduan-saiz-kolar-anjing`,
+`/zh/gou-bo-quan-chi-cun-zhi-nan`. The audit found only one of eight leather pet
+brands publishes a real sizing chart, so this was the largest single content gap
+in the shop. It carries seven neck bands in centimetres and inches with strap
+width, the measurement method, the two-finger fit check, and an explicit refusal
+to publish load or pull ratings.
+
+**New tests:** `tests/dog-sizing.test.ts`, 58 assertions — range coherence, inch/cm
+conversion, no recommendation gap, banned safety claims, localised routing,
+sitemap and footer wiring. **20 suites, 1,173 assertions, 195 pages.**
+
+**Nothing activated.** No gateway, no courier, no rate, no warranty, no contact
+detail. `features.payments` remains off. The owner's outstanding decisions are
+recorded in the roadmap.
+
 ## Next task
 
 **Phase 4, second half — location editorial.** The 34 area pages exist and are

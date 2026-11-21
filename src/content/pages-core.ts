@@ -4,7 +4,9 @@ export type Block =
   | { type: "p"; text: string }
   | { type: "h"; text: string }
   | { type: "list"; items: string[] }
-  | { type: "callout"; text: string };
+  | { type: "callout"; text: string }
+  /** Renders the dog collar size table. Content lives in pages-sizing.ts. */
+  | { type: "sizes" };
 
 export interface ContentPage {
   slug: Record<Locale, string>;

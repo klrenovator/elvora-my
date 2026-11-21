@@ -186,6 +186,43 @@ Even after a gateway exists, an order may only become paid through a verified
 callback or the owner's explicit cash-received action. There is no path that
 infers payment from a status field.
 
+## Internal research documents
+
+The repository root holds the competitor and market research that informs the
+content. These are **internal**: competitor names never appear in customer-facing
+copy, and none of the prices, rates or terms in them are used as our own.
+
+| File | Purpose |
+| --- | --- |
+| `COMPETITOR_DEEP_RESEARCH_AND_WEBSITE_IMPROVEMENT.md` | The research specification and its findings |
+| `COMPETITOR_COMPARISON_MATRIX.md` | 16 competitor sites, side by side, evidence-labelled |
+| `LEATHER_MATERIALS_AND_PRICING_RESEARCH.md` | Leather grades, tanning, observed price bands |
+| `PET_LEATHER_PRODUCTS_RESEARCH.md` | Pet leather brands, sizing standards, safety limits |
+| `MALAYSIA_DELIVERY_AND_COURIER_RESEARCH.md` | Malaysian couriers and COD operations |
+| `MALAYSIA_PAYMENT_AND_MERCHANT_RESEARCH.md` | Verified gateway fees and a recommendation |
+| `WEBSITE_IMPROVEMENT_ROADMAP.md` | Prioritised improvements, with owner decisions flagged |
+
+Evidence labels used throughout: **Verified** (stated on a page fetched),
+**Observed** (visible but unconfirmed), **Not disclosed** (no public source) and
+**Needs verification** (requires company confirmation).
+
+## Dog collar sizing guide
+
+`/en/dog-collar-sizing`, `/ms/panduan-saiz-kolar-anjing` and
+`/zh/gou-bo-quan-chi-cun-zhi-nan`.
+
+A measurement guide with seven neck bands expressed in centimetres and inches,
+each with a strap width and the sizes of dog it usually suits; the method for
+measuring a neck; the two-finger fit check; and an explicit statement that we
+publish no load or pull capacity for any collar, because we have no manufacturer
+test report to support one.
+
+The chart is guidance for measuring, not a restatement of any product's
+adjustment range — that depends on strap length and buckle position and must be
+confirmed against delivered stock, which the page says publicly. `tests/dog-sizing.test.ts`
+(58 assertions) enforces the arithmetic, the absence of gap sizes, the ban on
+unsupported safety claims, and the localised routing.
+
 ## Location and delivery pages
 
 Every area the shop names has a page, in all three languages:

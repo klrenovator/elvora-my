@@ -62,6 +62,7 @@ export function SiteFooter({ locale }: { locale: Locale }) {
                 [
                   ["shipping", dict.footer.shipping],
                   ["locations", dict.footer.deliveryAreas],
+                  ["dogSizing", dict.footer.sizing],
                   ["returns", dict.footer.returns],
                   ["faq", dict.nav.faq],
                   ["careGuide", dict.footer.care],

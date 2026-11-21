@@ -69,6 +69,13 @@ const routes = {
   careGuide: {
     path: { en: ["leather-care"], ms: ["penjagaan-kulit"], zh: ["pi-ge-bao-yang"] },
   },
+  dogSizing: {
+    path: {
+      en: ["dog-collar-sizing"],
+      ms: ["panduan-saiz-kolar-anjing"],
+      zh: ["gou-bo-quan-chi-cun-zhi-nan"],
+    },
+  },
   privacy: {
     path: { en: ["privacy-policy"], ms: ["dasar-privasi"], zh: ["yin-si-zheng-ce"] },
   },
