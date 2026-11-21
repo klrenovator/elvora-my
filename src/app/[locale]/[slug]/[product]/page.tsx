@@ -12,6 +12,7 @@ import {
   relatedFor,
 } from "@/lib/catalogue/storefront";
 import { assertCatalogueValid } from "@/lib/validate-catalogue";
+import { warranty } from "@/content/warranty";
 import { Breadcrumbs, categoryRoutes } from "@/components/category-cards";
 import { FaqAccordion } from "@/components/faq-accordion";
 import { ContactChannels } from "@/components/contact-channels";
@@ -210,6 +211,20 @@ export default async function ProductPage({
                   {dict.home.leatherLink}
                 </a>
               </div>
+
+              {/* Warranty sits above the buy controls: on a COD store the
+                  promise of after-sales support is part of what is being
+                  bought, not a footnote. Terms live in content/warranty.ts so
+                  this line cannot disagree with the policy page. */}
+              <p className="mt-5 border-l-2 border-[color:var(--color-clay)] pl-4 text-[0.8125rem] leading-relaxed text-[color:var(--color-ink-body)]">
+                {warranty.summary[locale]}{" "}
+                <Link
+                  href={pathFor("warranty", locale)}
+                  className="text-[color:var(--color-cognac)] underline decoration-[color:var(--color-line-strong)] underline-offset-4"
+                >
+                  {dict.footer.warranty}
+                </Link>
+              </p>
 
               <ProductPurchase product={product} locale={locale} price={price} />
 

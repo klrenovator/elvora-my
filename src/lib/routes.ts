@@ -69,6 +69,9 @@ const routes = {
   careGuide: {
     path: { en: ["leather-care"], ms: ["penjagaan-kulit"], zh: ["pi-ge-bao-yang"] },
   },
+  warranty: {
+    path: { en: ["warranty"], ms: ["jaminan"], zh: ["bao-xiu"] },
+  },
   dogSizing: {
     path: {
       en: ["dog-collar-sizing"],

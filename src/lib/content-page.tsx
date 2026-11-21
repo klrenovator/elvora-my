@@ -49,7 +49,7 @@ function BlockView({ block, locale }: { block: Block; locale: Locale }): ReactNo
               <thead>
                 <tr className="border-b border-[color:var(--color-line-strong)]">
                   <th scope="col" className="py-2.5 pr-4 font-medium text-[color:var(--color-ink-strong)]">
-                    {cols.width}
+                    {cols.size}
                   </th>
                   <th scope="col" className="py-2.5 pr-4 font-medium text-[color:var(--color-ink-strong)]">
                     {cols.range}
@@ -68,8 +68,8 @@ function BlockView({ block, locale }: { block: Block; locale: Locale }): ReactNo
                     key={`${row.width}-${row.minCm}`}
                     className="border-b border-[color:var(--color-line)] last:border-0"
                   >
-                    <td className="py-2.5 pr-4 tabular-nums text-[color:var(--color-ink-body)]">
-                      {row.width} mm
+                    <td className="py-2.5 pr-4 font-medium uppercase text-[color:var(--color-ink-strong)]">
+                      {row.sizeId}
                     </td>
                     <td className="py-2.5 pr-4 tabular-nums text-[color:var(--color-ink-body)]">
                       {row.minCm}–{row.maxCm} cm

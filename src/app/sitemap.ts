@@ -110,6 +110,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     returns: 0.6,
     "care-guide": 0.7,
     "dog-sizing": 0.8,
+    warranty: 0.7,
     privacy: 0.3,
     terms: 0.3,
   };

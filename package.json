@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx tests/pricing.test.ts && tsx tests/catalogue.test.ts && tsx tests/language-switch.test.ts && tsx tests/cart.test.ts && tsx tests/address.test.ts && tsx tests/checkout-render.test.tsx && tsx tests/admin-auth.test.ts && tsx tests/admin-form.test.ts && tsx tests/admin-repository.test.ts && tsx tests/admin-editor.test.tsx && tsx tests/orders.test.ts && tsx tests/checkout-action.test.ts && tsx tests/checkout-states.test.tsx && tsx tests/supabase.test.ts && tsx tests/images.test.ts && tsx tests/admin-media.test.tsx && tsx tests/cod.test.ts && tsx tests/contact-channels.test.tsx && tsx tests/order-detail.test.ts && tsx tests/locations.test.ts && tsx tests/dog-sizing.test.ts",
+    "test": "tsx tests/pricing.test.ts && tsx tests/catalogue.test.ts && tsx tests/language-switch.test.ts && tsx tests/cart.test.ts && tsx tests/address.test.ts && tsx tests/checkout-render.test.tsx && tsx tests/admin-auth.test.ts && tsx tests/admin-form.test.ts && tsx tests/admin-repository.test.ts && tsx tests/admin-editor.test.tsx && tsx tests/orders.test.ts && tsx tests/checkout-action.test.ts && tsx tests/checkout-states.test.tsx && tsx tests/supabase.test.ts && tsx tests/images.test.ts && tsx tests/admin-media.test.tsx && tsx tests/cod.test.ts && tsx tests/contact-channels.test.tsx && tsx tests/order-detail.test.ts && tsx tests/locations.test.ts && tsx tests/dog-sizing.test.ts && tsx tests/warranty.test.ts",
     "admin:hash": "tsx scripts/hash-password.ts",
     "db:seed": "tsx scripts/seed-supabase.ts",
     "db:verify": "tsx scripts/verify-supabase.ts",

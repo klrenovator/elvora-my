@@ -206,22 +206,42 @@ Evidence labels used throughout: **Verified** (stated on a page fetched),
 **Observed** (visible but unconfirmed), **Not disclosed** (no public source) and
 **Needs verification** (requires company confirmation).
 
+## Warranty
+
+`/en/warranty`, `/ms/jaminan`, `/zh/bao-xiu` — 12 months on workmanship and
+hardware, counted from delivery. Repair first, replacement where repair is not
+possible. The customer pays return postage to us; we pay it back to them.
+Excluded: normal wear and patina, water and heat damage, misuse, alteration,
+chewing, and any load or pull rating.
+
+The same terms appear as a summary above the buy controls on every product page,
+because a COD customer cannot inspect the goods before paying and after-sales
+support is part of what they are buying.
+
+Terms live in `src/content/warranty.ts` as one source, read by the policy page,
+the product page and the tests alike. `tests/warranty.test.ts` (43 assertions)
+checks that no page invents a different duration, that the exclusions still name
+normal wear and water damage, that no "lifetime" or "waterproof" promise appears,
+and that a 31 January start adds twelve months without overflowing into March.
+
 ## Dog collar sizing guide
 
 `/en/dog-collar-sizing`, `/ms/panduan-saiz-kolar-anjing` and
 `/zh/gou-bo-quan-chi-cun-zhi-nan`.
 
-A measurement guide with seven neck bands expressed in centimetres and inches,
-each with a strap width and the sizes of dog it usually suits; the method for
-measuring a neck; the two-finger fit check; and an explicit statement that we
-publish no load or pull capacity for any collar, because we have no manufacturer
-test report to support one.
+A measurement guide with the neck ranges of the collars we actually sell,
+expressed in centimetres and inches, plus the method for measuring a neck, the
+two-finger fit check, and an explicit statement that we publish no load or pull
+capacity for any collar, because we have no manufacturer test report to support
+one.
 
-The chart is guidance for measuring, not a restatement of any product's
-adjustment range — that depends on strap length and buckle position and must be
-confirmed against delivered stock, which the page says publicly. `tests/dog-sizing.test.ts`
-(58 assertions) enforces the arithmetic, the absence of gap sizes, the ban on
-unsupported safety claims, and the localised routing.
+**The table is derived from the catalogue at build time**, not typed by hand. An
+earlier version carried generic neck bands that did not match the S/M/L ranges on
+the product pages; that is exactly the kind of disagreement that causes wrong
+orders, so `tests/dog-sizing.test.ts` (62 assertions) now fails the build if the
+guide and the catalogue ever drift, including whether a collar-and-leash set uses
+the same ranges as the collar inside it. The rest of the suite checks the
+arithmetic, the ban on unsupported safety claims, and the localised routing.
 
 ## Location and delivery pages
 

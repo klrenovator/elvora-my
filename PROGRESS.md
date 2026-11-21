@@ -839,6 +839,47 @@ sitemap and footer wiring. **20 suites, 1,173 assertions, 195 pages.**
 detail. `features.payments` remains off. The owner's outstanding decisions are
 recorded in the roadmap.
 
+## Phase 4c — catalogue-linked sizing, and a warranty
+
+**Owner decisions, 2026-11-21:** warranty approved; sizing to be confirmed
+against real collars. Gateway, courier, rates and contact details stay in Phase D.
+
+### Sizing guide now reads the catalogue
+
+The first version of the sizing guide carried generic neck bands that did **not**
+match the S/M/L ranges printed on the product pages (25–32, 32–40, 40–50 cm). A
+guide that disagrees with the product it explains creates wrong orders, so the
+table is now derived from `products` at build time. `tests/dog-sizing.test.ts`
+fails if a catalogue range and the table ever drift apart, and a further
+assertion proves the collar-and-leash set uses the same ranges as the collar
+inside it. The invented "15/20/25 mm" width column is gone; width is explained as
+a comfort choice and stated per product only where the catalogue records it.
+
+### Warranty
+
+Published at `/en/warranty`, `/ms/jaminan`, `/zh/bao-xiu`, and summarised above
+the buy controls on every product page.
+
+| Term | Decision |
+| --- | --- |
+| Duration | **12 months**, from delivery (not from order date) |
+| Scope | Stitching and hardware failure only |
+| Remedy | Repair first, replacement where repair is not possible, refund last |
+| Return postage | Customer pays inbound, we pay outbound |
+| Excluded | Normal wear and patina, water and heat damage, misuse, alteration, chewing, any load rating |
+
+**Why 12 months:** neither BONIA nor Braun Büffel publishes a workmanship
+warranty at all — both offer only a 30-day return window. Bellroy gives wallets
+3 years; Mackenzie & George gives a lifetime workmanship guarantee. Twelve months
+is ahead of the two Malaysian competitors and still honourable for a small
+workshop. The research document records the comparison.
+
+Terms live in `src/content/warranty.ts` as the single source, so the policy page
+and the product page cannot contradict each other. `tests/warranty.test.ts`
+adds 43 assertions.
+
+**Verification: 21 suites, 1,220 assertions, 198 pages.**
+
 ## Next task
 
 **Phase 4, second half — location editorial.** The 34 area pages exist and are

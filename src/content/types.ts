@@ -54,6 +54,7 @@ export type PageKey =
   | "leather-guide"
   | "care-guide"
   | "dog-sizing"
+  | "warranty"
   | "privacy"
   | "terms";
 
