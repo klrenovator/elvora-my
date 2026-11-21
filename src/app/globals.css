@@ -1,9 +1,264 @@
 @import "tailwindcss";
 
+/*
+  Elvora design tokens.
+  Every colour, radius and type scale value used by the UI lives here, so the
+  final brand identity (logo, palette, typography) can be swapped in one place
+  without touching component markup.
+*/
+
+@theme {
+  /* Leather-inspired neutrals */
+  --color-ivory: #fcfaf6;
+  --color-cream: #f5eee3;
+  --color-sand: #e9ddca;
+  --color-linen: #ded0ba;
+  --color-clay: #c2a98a;
+  --color-tan: #b08862;
+  --color-cognac: #8a4b2a;
+  --color-cognac-deep: #6c3720;
+  --color-chocolate: #2b1d15;
+  --color-espresso: #1b120d;
+  --color-ink: #14100d;
+  --color-stone: #6f655c;
+  --color-mist: #8d837a;
+
+  /* Semantic tokens */
+  --color-surface: var(--color-ivory);
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: var(--color-cream);
+  --color-ink-strong: var(--color-espresso);
+  --color-ink-body: #3a3029;
+  --color-ink-muted: var(--color-stone);
+  --color-line: #e0d5c5;
+  --color-line-strong: #cbbba4;
+  --color-accent: var(--color-cognac);
+  --color-accent-hover: var(--color-cognac-deep);
+  --color-onaccent: #fffaf4;
+
+  /* Type */
+  --font-display: "Cormorant Garamond Variable", "Cormorant Garamond", Georgia,
+    "Times New Roman", serif;
+  --font-sans: "Jost Variable", "Jost", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-script: "Cormorant Garamond Variable", Georgia, serif;
+
+  /* Rhythm */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+
+  --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/*
+  Font fallbacks for Chinese. Cormorant and Jost have no CJK coverage, so the
+  stack must hand off to a system Chinese face rather than showing tofu.
+*/
 :root {
-  font-family: Arial, Helvetica, sans-serif;
+  --cjk-fallback: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans SC", "Source Han Sans SC", sans-serif;
+  --header-height: 4.5rem;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 body {
-  margin: 0;
+  background-color: var(--color-surface);
+  color: var(--color-ink-body);
+  font-family: var(--font-sans), var(--cjk-fallback);
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Chinese pages need the CJK face first; the Latin faces cannot render them. */
+html[lang^="zh"] body {
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans SC", "Source Han Sans SC", var(--font-sans), sans-serif;
+  letter-spacing: 0.01em;
+}
+
+html[lang^="zh"] .font-display {
+  font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", "SimSun",
+    var(--font-display), serif;
+  letter-spacing: 0.02em;
+}
+
+html[lang^="zh"] .tracking-eyebrow {
+  letter-spacing: 0.18em;
+}
+
+::selection {
+  background: var(--color-sand);
+  color: var(--color-espresso);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-cognac);
+  outline-offset: 3px;
+}
+
+/* ---------- Typographic helpers ---------- */
+
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+
+.tracking-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+}
+
+html[lang^="ms"] .tracking-eyebrow,
+html[lang^="en"] .tracking-eyebrow {
+  text-transform: uppercase;
+}
+
+.lede {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: var(--color-ink-muted);
+}
+
+.prose-leather p {
+  margin-block: 1.1em;
+  line-height: 1.8;
+  color: var(--color-ink-body);
+}
+
+.prose-leather p:first-child {
+  margin-block-start: 0;
+}
+
+.prose-leather h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.4vw, 1.875rem);
+  line-height: 1.25;
+  margin-block: 2rem 0.75rem;
+  color: var(--color-espresso);
+}
+
+/* ---------- Hairline rules and shelves ---------- */
+
+.rule {
+  height: 1px;
+  background: var(--color-line);
+}
+
+.hairline-frame {
+  position: relative;
+}
+
+.hairline-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgb(43 29 21 / 0.08);
+  pointer-events: none;
+}
+
+/* ---------- Reveal on scroll (CSS only, no JS, respects reduced motion) ---------- */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  animation: rise-in 0.7s var(--ease-out-soft) both;
+}
+
+.reveal-delay-1 {
+  animation-delay: 0.08s;
+}
+.reveal-delay-2 {
+  animation-delay: 0.16s;
+}
+.reveal-delay-3 {
+  animation-delay: 0.24s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Slow, subtle image breathe used only on the hero artwork. */
+@keyframes slow-drift {
+  from {
+    transform: scale(1.02);
+  }
+  to {
+    transform: scale(1.06);
+  }
+}
+
+.hero-art {
+  animation: slow-drift 18s ease-in-out alternate infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-art {
+    animation: none;
+  }
+}
+
+/* ---------- Focus and skip link ---------- */
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 100;
+  transform: translateY(-150%);
+  transition: transform 0.2s var(--ease-out-soft);
+  background: var(--color-espresso);
+  color: var(--color-onaccent);
+  padding: 0.6rem 1rem;
+  font-size: 0.8125rem;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* ---------- Scrollbar (desktop only, keeps mobile clean) ---------- */
+
+@supports (scrollbar-width: thin) {
+  .thin-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
 }
