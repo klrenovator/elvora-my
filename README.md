@@ -23,7 +23,7 @@ falling back to English.
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm test            # 933 assertions across 17 suites
+npm test            # 1115 assertions across 19 suites
 npm run verify      # typecheck + lint + tests + build, in one command
 npm run build       # production build, all routes pre-rendered
 ```
@@ -119,8 +119,26 @@ but the customer had no cash" and "cancelled before dispatch" are both an order
 that is not `paid`, but one is money owed to you and the other is nothing. An
 owner reconciling a cash-up needs to tell those apart.
 
+### Fulfilling an order
+
+`/admin/orders` is the list — who, where, how much. Opening a reference gives the
+**packing view** at `/admin/orders/[reference]`:
+
+- the **full delivery address**: both street lines, postcode, city, state, and
+  any delivery notes the customer wrote
+- every line with its **variant id and SKU**, because two variants of one
+  product share a name and a packer cannot pick between them from a name
+- the payment state in words that say whether money is still owed
+- **Mark paid** / **Cancel**, and nothing at all once the order is settled
+
+Delivery cost shows as *"Quoted before dispatch"* rather than RM 0.00, because
+the shop has never published a shipping rate and zero would claim delivery is
+free. The page reads only what the order recorded — nothing is recomputed from
+the current catalogue, so a price edited later cannot rewrite what the customer
+agreed to.
+
 **Settling is deliberate.** An order becomes `paid` only when the owner presses
-**Mark paid** in `/admin/orders`, once the cash is actually in hand. The amount
+**Mark paid**, once the cash is actually in hand. The amount
 recorded is the order's own total, read from the stored order — never a figure
 typed into a form, which is what stops a RM 498 order being settled for RM 1. An
 order with no price cannot be settled, because there is no amount to record and
@@ -167,6 +185,90 @@ Two rules are already encoded and tested in `paymentGuards`:
 Even after a gateway exists, an order may only become paid through a verified
 callback or the owner's explicit cash-received action. There is no path that
 infers payment from a status field.
+
+## Internal research documents
+
+The repository root holds the competitor and market research that informs the
+content. These are **internal**: competitor names never appear in customer-facing
+copy, and none of the prices, rates or terms in them are used as our own.
+
+| File | Purpose |
+| --- | --- |
+| `COMPETITOR_DEEP_RESEARCH_AND_WEBSITE_IMPROVEMENT.md` | The research specification and its findings |
+| `COMPETITOR_COMPARISON_MATRIX.md` | 16 competitor sites, side by side, evidence-labelled |
+| `LEATHER_MATERIALS_AND_PRICING_RESEARCH.md` | Leather grades, tanning, observed price bands |
+| `PET_LEATHER_PRODUCTS_RESEARCH.md` | Pet leather brands, sizing standards, safety limits |
+| `MALAYSIA_DELIVERY_AND_COURIER_RESEARCH.md` | Malaysian couriers and COD operations |
+| `MALAYSIA_PAYMENT_AND_MERCHANT_RESEARCH.md` | Verified gateway fees and a recommendation |
+| `WEBSITE_IMPROVEMENT_ROADMAP.md` | Prioritised improvements, with owner decisions flagged |
+
+Evidence labels used throughout: **Verified** (stated on a page fetched),
+**Observed** (visible but unconfirmed), **Not disclosed** (no public source) and
+**Needs verification** (requires company confirmation).
+
+## Dog collar sizing guide
+
+`/en/dog-collar-sizing`, `/ms/panduan-saiz-kolar-anjing` and
+`/zh/gou-bo-quan-chi-cun-zhi-nan`.
+
+A measurement guide with seven neck bands expressed in centimetres and inches,
+each with a strap width and the sizes of dog it usually suits; the method for
+measuring a neck; the two-finger fit check; and an explicit statement that we
+publish no load or pull capacity for any collar, because we have no manufacturer
+test report to support one.
+
+The chart is guidance for measuring, not a restatement of any product's
+adjustment range — that depends on strap length and buckle position and must be
+confirmed against delivered stock, which the page says publicly. `tests/dog-sizing.test.ts`
+(58 assertions) enforces the arithmetic, the absence of gap sizes, the ban on
+unsupported safety claims, and the localised routing.
+
+## Location and delivery pages
+
+Every area the shop names has a page, in all three languages:
+
+| Language | URL |
+| --- | --- |
+| English | `/en/delivery/kuala-lumpur` |
+| Bahasa Melayu | `/ms/penghantaran-kawasan/kuala-lumpur` |
+| Chinese | `/zh/pei-song-di-qu/kuala-lumpur` |
+
+The area slug is shared across languages — a place name is not translated — and
+the index at `/en/delivery` lists every area grouped by state.
+
+### Why these pages are not thin content
+
+The easy mistake with location pages is generating hundreds from a postcode
+dump. That produces near-duplicate doorway pages that rank for nothing and read
+as spam. This build deliberately does the opposite:
+
+- **34 named towns and cities**, each with a real state, a real postcode range
+  and a properly translated name — not every mukim in the country.
+- Each page states **its own** area, state and postcode, so no two titles or
+  descriptions are identical. A test asserts this.
+- The **commercial** copy is identical everywhere, because the arrangement
+  genuinely is: order, confirm on WhatsApp, delivery cost quoted before
+  dispatch, cash on arrival.
+
+### What the pages refuse to claim
+
+There is no delivery time, fee, courier name or coverage promise anywhere in
+this copy, because the owner has published none of those. Each page carries a
+**"What we do not promise"** block saying so explicitly, and a test fails the
+build if a phrase like "free delivery", "next day", a flat rate or a courier
+brand ever appears.
+
+East Malaysia pages (Sabah, Sarawak, Labuan) additionally explain that delivery
+is slower and costlier across the South China Sea — without inventing a figure.
+
+Structured data is a `Service` with `areaServed`, **not** a `LocalBusiness`.
+Claiming premises in 34 cities would be false structured data.
+
+### Adding an area
+
+Append to `src/content/delivery-areas.ts`. The pages, sitemap, internal links and
+language switching all derive from that list, so a new town appears everywhere at
+once — no other file changes.
 
 ## Product pages
 

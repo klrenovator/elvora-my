@@ -3,7 +3,7 @@
 This file is the single source of truth for what has been built, what has been
 verified, and what comes next. Update it at the end of every working session.
 
-**Last updated:** Phase 2f completed (Cash on Delivery and contact channels).
+**Last updated:** Phase 4 (partial) completed — location and delivery pages.
 
 ---
 
@@ -20,9 +20,10 @@ verified, and what comes next. Update it at the end of every working session.
 | 2e | Online payment provider (FPX / cards / DuitNow) | ⬜ Deferred by the owner — COD for now, approval required |
 | 3a | Supabase persistence: catalogue edits and orders stored permanently, RLS | ✅ Complete |
 | 3 | Multilingual completion for commerce surfaces (cart, checkout, forms, admin) | ⬜ Blocked by Phase 2 |
-| 4 | Nationwide location SEO: Malaysia geo database, location pages, internal linking | ⬜ Not started |
+| 4 | Nationwide location SEO: geo database, location pages, internal linking | 🔶 Area pages built (34 areas × 3 languages); location content pages pending |
 | 5 | Content marketing, AEO/GEO/LLMO assets, articles | ⬜ Deferred until Phase 2–4 |
 | 2f | Cash on Delivery, payment/order status tracking, WhatsApp + email contact | ✅ Complete |
+| 2g | Order detail and fulfilment view: full address, pickable lines, per-order actions | ✅ Complete |
 | 6 | Conversion and leads: WhatsApp, live chat, enquiry flows, analytics | 🔶 WhatsApp and email live; live chat and analytics not started |
 | 7 | Full QA, performance, launch | ⬜ Not started |
 
@@ -632,6 +633,132 @@ constraints.
 
 ---
 
+## Phase 2g — order detail and fulfilment view (completed)
+
+### The problem this fixed
+
+Phase 2f made orders settleable, but the admin could not actually *fulfil* one.
+`/admin/orders` showed a city and a postcode — not the street, not the delivery
+notes — and no line items at all. With Cash on Delivery, the money arrives only
+after the parcel does, so an order the owner cannot pack is an order that never
+gets paid. That is not a cosmetic gap.
+
+### What was added
+
+`/admin/orders/[reference]` — the packing view:
+
+| Shows | Why it matters |
+| --- | --- |
+| Both street lines, postcode, city, state | A parcel cannot be sent to a city alone |
+| Delivery notes | "Gate code 4412" is the difference between delivered and abandoned |
+| Variant id and SKU per line | Two variants of one product share a name; a name cannot be picked |
+| Quantities and line totals | What goes in the box |
+| Payment state in words | Whether money is still owed, stated rather than implied |
+| Mark paid / Cancel | The same audited actions as the list, with the amount in the button |
+
+### Rules kept from earlier phases
+
+- **Nothing is recomputed.** Lines, prices and the address are read from the
+  stored order. A product edited later must not rewrite what was agreed.
+- **Absent delivery cost** reads *"Quoted before dispatch"*, never RM 0.00.
+- **A settled order offers no actions**, and an unpriced order cannot be settled
+  here any more than in the list.
+- **No invented identifiers.** A line with no SKU shows none; the customer's
+  WhatsApp link is only rendered when the number normalises to a plausible one.
+- The page is behind `isOwner()` and an unknown reference is a **404**, not an
+  empty page.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| Helpers: address, lines, statuses, slip | ✅ 69 assertions |
+| Optional address lines and notes omitted when empty | ✅ |
+| Variant and SKU surfaced separately from the name | ✅ |
+| Payment wording never calls an unsettled order paid | ✅ |
+| Unknown reference is 404 when authenticated | ✅ |
+| Unauthenticated access redirects to login | ✅ |
+| **Rendered page** with a real order (served over HTTP) | ✅ every field present, no stray `undefined` |
+| `npm run verify` | ✅ clean, 87 pages, 1002 assertions across 18 suites |
+
+**Not verifiable here:** no Supabase project, so the page was rendered against
+the in-memory repository. It uses the same `OrderRepository` interface, so the
+database path is the same code.
+
+---
+
+## Phase 4 — location and delivery pages (partial, completed)
+
+### What was built
+
+| Piece | Detail |
+| --- | --- |
+| Geo database | `src/content/delivery-areas.ts` — 34 towns and cities across 14 states, each with a state code, postcode data and names in three languages |
+| Area page | `/[locale]/delivery/[area]` — 34 × 3 = 102 pages |
+| Index | `/[locale]/delivery` — grouped by state, major cities first |
+| Routes | Localised section segment; area slug shared across languages |
+| Internal linking | Footer link from every page; categories on every area page; siblings in the same state; other major regions |
+| Sitemap | 70 new URLs with reciprocal hreflang |
+| Structured data | `Service` + `areaServed` + `City`, **not** `LocalBusiness` |
+
+Page count went from 87 to **192**.
+
+### The design decision that mattered
+
+The obvious implementation — generate a page per postcode — produces hundreds of
+near-duplicate doorway pages. That is a penalty risk, not an SEO win, and it
+reads as spam to a customer.
+
+Instead: 34 real places, each page specific about *its* geography, with the
+commercial arrangement stated identically everywhere because it genuinely is
+identical. Three tests enforce this:
+
+| Test | Catches |
+| --- | --- |
+| Titles and descriptions all distinct | Two areas sharing a title |
+| No postcode label repeats | Two pages printing the same postcode line |
+| Banned-phrase scan across all three languages | "Free delivery", "next day", a flat rate, a courier brand |
+
+The postcode test caught a real data error during the build: Subang Jaya and
+Puchong both genuinely sit under postcode 47, so both pages would have printed
+the identical line. Fixed by giving those two their real five-digit ranges
+(47500–47630 and 47100–47190) instead of the shared prefix.
+
+### What the pages refuse to say
+
+No delivery time. No fee. No courier name. No coverage promise. None of these
+have been published by the owner, so each page carries an explicit **"What we do
+not promise"** block and explains what actually happens: order, confirm on
+WhatsApp, delivery cost quoted before dispatch, cash on arrival.
+
+East Malaysia pages additionally explain the South China Sea crossing, again
+without a number.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| Every area names a real state | ✅ |
+| Every area named in all three languages, Chinese actually Chinese | ✅ |
+| No two areas display the same postcode label | ✅ after fixing Subang Jaya/Puchong |
+| All titles and descriptions distinct (102 each) | ✅ |
+| No forbidden commercial promise, all three languages | ✅ |
+| Route, hreflang and canonical correctness | ✅ verified over HTTP |
+| Translated paths resolve (proxy rewrite) | ✅ `/ms/…` and `/zh/…` return 200 |
+| Unknown area is 404 on every locale | ✅ |
+| Language switcher translates the URL | ✅ `switchPath` proven both ways |
+| Every sampled sitemap URL returns 200 | ✅ |
+| `tests/locations.test.ts` | ✅ 113 assertions |
+| `npm test` | ✅ 19 suites, 1115 assertions |
+| `npm run verify` | ✅ clean, 192 pages |
+
+**Deliberately not built yet:** the "location content page" half of Phase 4 —
+long-form editorial per city (e.g. a leather-care or gifting guide localised to
+Penang). Area pages must exist and be indexed first; publishing editorial for 34
+cities before there is traffic to justify it would be writing for a crawler.
+
+---
+
 ## Known gaps and deliberate deferrals
 
 1. **Persistence needs the owner to create the Supabase project.** The code,
@@ -658,12 +785,14 @@ constraints.
    the moment `NEXT_PUBLIC_WHATSAPP_NUMBER` and `NEXT_PUBLIC_CONTACT_EMAIL` are
    set; until then the UI renders no link rather than a placeholder. Phone,
    Instagram, Facebook and TikTok remain unset.
-7. **Location pages not built.** The geo database and page architecture are
-   Phase 4; building them before products exist would produce thin pages.
-8. **OG image** currently reuses the hero photograph; a dedicated 1200×630
+7. **No order search or date filter.** The list shows the 100 most recent orders. Fine at launch volume; worth revisiting once there are more than a few hundred.
+8. **No location editorial yet.** Area pages exist for 34 places, but there is no
+   long-form per-city content. That is the second half of Phase 4, and it should
+   follow real traffic rather than precede it.
+9. **OG image** currently reuses the hero photograph; a dedicated 1200×630
    branded banner is pending (image generation limit reached this turn).
-9. **No analytics or consent banner yet.** Phase 6.
-10. **No Vietnamese/other locales** — intentionally exactly three.
+10. **No analytics or consent banner yet.** Phase 6.
+11. **No Vietnamese/other locales** — intentionally exactly three.
 
 ---
 
@@ -681,20 +810,57 @@ Free is fine for building and testing. For a shop taking real orders, the
 7-day pause and the absence of backups are both unacceptable, so **Pro is the
 recommendation before launch**. Nothing in the code depends on the plan.
 
+## Phase 4b — competitor research and its first applied change
+
+**Research date:** 2026-11-21. Six research documents added at the repository
+root, all internal, none customer-facing:
+
+- `COMPETITOR_DEEP_RESEARCH_AND_WEBSITE_IMPROVEMENT.md` — the specification
+- `COMPETITOR_COMPARISON_MATRIX.md` — 16 sites, evidence-labelled
+- `LEATHER_MATERIALS_AND_PRICING_RESEARCH.md` — grades, tanning, observed prices
+- `PET_LEATHER_PRODUCTS_RESEARCH.md` — the eight pet sites, sizing and safety
+- `MALAYSIA_DELIVERY_AND_COURIER_RESEARCH.md` — couriers, COD operations
+- `MALAYSIA_PAYMENT_AND_MERCHANT_RESEARCH.md` — verified gateway fees
+- `WEBSITE_IMPROVEMENT_ROADMAP.md` — prioritised actions
+
+**Applied to the site:** a dog collar sizing guide at
+`/en/dog-collar-sizing`, `/ms/panduan-saiz-kolar-anjing`,
+`/zh/gou-bo-quan-chi-cun-zhi-nan`. The audit found only one of eight leather pet
+brands publishes a real sizing chart, so this was the largest single content gap
+in the shop. It carries seven neck bands in centimetres and inches with strap
+width, the measurement method, the two-finger fit check, and an explicit refusal
+to publish load or pull ratings.
+
+**New tests:** `tests/dog-sizing.test.ts`, 58 assertions — range coherence, inch/cm
+conversion, no recommendation gap, banned safety claims, localised routing,
+sitemap and footer wiring. **20 suites, 1,173 assertions, 195 pages.**
+
+**Nothing activated.** No gateway, no courier, no rate, no warranty, no contact
+detail. `features.payments` remains off. The owner's outstanding decisions are
+recorded in the roadmap.
+
 ## Next task
 
-**Phase 2e — payment provider integration.** Blocked until the owner supplies a
-merchant account (FPX / cards / DuitNow) and sandbox credentials.
+**Phase 4, second half — location editorial.** The 34 area pages exist and are
+indexed. What is missing is long-form content that earns a page its own ranking
+rather than relying on the geography alone: a leather-care or gifting guide
+localised per city, linked from its area page. Worth doing once there is traffic
+to justify it, which is why it is not bundled with the area pages.
 
-Everything around it is now in place, so the remaining work is bounded:
+**Alternatively, Phase 5 — content marketing and AEO.** Articles written for the
+questions customers actually ask (how to size a belt, full grain versus top
+grain in heat and humidity), structured for answer engines. This compounds with
+the location pages: an article linked from 34 city pages gets 34 entry points.
 
-1. Implement `PaymentProvider` against the provider's sandbox: session creation,
-   redirect, and a signature-verified callback.
-2. Verify the callback against `paymentGuards` — exact amount, and only a
-   `pending-payment` order may transition.
-3. Flip `features.payments` in the same commit that the sandbox test passes,
-   never before.
+Either way, these owner actions unlock more than any further code:
 
-**Before launch:** create the Supabase project (`docs/SUPABASE-SETUP.md`), run
-`npm run db:seed`, and confirm `npm run db:verify` passes. Then move to the Pro
-plan so the database does not pause and backups exist.
+1. **Create the Supabase project** and run `0001_init.sql`, `0003_cod.sql`,
+   `0002_storage.sql`, then `npm run db:seed` and `npm run db:verify`. Until then
+   orders live in server memory and vanish on redeploy.
+2. **Set `NEXT_PUBLIC_WHATSAPP_NUMBER` and `NEXT_PUBLIC_CONTACT_EMAIL`.** Both
+   channels are built and appear the moment they are set — including on all 102
+   location pages, where they are currently the only missing element.
+3. **Choose the Supabase plan.** Free pauses after 7 days idle and has no
+   backups; **Pro ($25/month) before real orders**. Nothing is subscribed.
+
+**Phase 2e (online payment) remains deferred by the owner's instruction.**

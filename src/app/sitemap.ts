@@ -5,6 +5,7 @@ import { categories } from "@/content/categories";
 import { alternatePaths, pathFor as pathForPath, type RouteKey } from "@/lib/routes";
 import { contentPages, pageRouteKeys } from "@/lib/page-resolver";
 import { catalogueForStorefront } from "@/lib/catalogue/storefront";
+import { deliveryAreas } from "@/content/delivery-areas";
 import type { PageKey } from "@/content/types";
 
 /**
@@ -82,6 +83,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const locale of locales) push(paths, locale, 0.85, "weekly");
   }
 
+  // Delivery areas.
+  //
+  // Registered only for areas that exist in the geo database, so the sitemap can
+  // never list a URL that 404s. `dynamicParams = false` on both location routes
+  // means these are the complete set.
+  const locationIndex = alternatePaths("locations");
+  for (const locale of locales) push(locationIndex, locale, 0.7, "monthly");
+
+  for (const area of deliveryAreas) {
+    const paths = Object.fromEntries(
+      locales.map((locale) => [locale, pathForPath("location", locale, { area: area.slug })]),
+    ) as Record<Locale, string>;
+    // Major centres are worth more crawl attention than small ones, but every
+    // area page is a real page with unique geography, so none are excluded.
+    for (const locale of locales) push(paths, locale, area.major ? 0.7 : 0.6, "monthly");
+  }
+
   // Editorial and trust pages
   const pagePriorities: Record<PageKey, number> = {
     "leather-guide": 0.8,
@@ -91,6 +109,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     shipping: 0.6,
     returns: 0.6,
     "care-guide": 0.7,
+    "dog-sizing": 0.8,
     privacy: 0.3,
     terms: 0.3,
   };

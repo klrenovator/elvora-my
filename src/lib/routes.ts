@@ -69,6 +69,13 @@ const routes = {
   careGuide: {
     path: { en: ["leather-care"], ms: ["penjagaan-kulit"], zh: ["pi-ge-bao-yang"] },
   },
+  dogSizing: {
+    path: {
+      en: ["dog-collar-sizing"],
+      ms: ["panduan-saiz-kolar-anjing"],
+      zh: ["gou-bo-quan-chi-cun-zhi-nan"],
+    },
+  },
   privacy: {
     path: { en: ["privacy-policy"], ms: ["dasar-privasi"], zh: ["yin-si-zheng-ce"] },
   },
@@ -80,6 +87,24 @@ const routes = {
   // placeholder that the switcher fills from the matched product.
   product: {
     path: { en: ["products", "[slug]"], ms: ["produk", "[slug]"], zh: ["chan-pin", "[slug]"] },
+  },
+
+  /**
+   * Location pages.
+   *
+   * `/en/delivery/kuala-lumpur` and its siblings. The area slug is shared across
+   * languages because a place name is not translated — the surrounding copy is.
+   * Only the section segment differs, which keeps one canonical area identifier.
+   */
+  locations: {
+    path: { en: ["delivery"], ms: ["penghantaran-kawasan"], zh: ["pei-song-di-qu"] },
+  },
+  location: {
+    path: {
+      en: ["delivery", "[area]"],
+      ms: ["penghantaran-kawasan", "[area]"],
+      zh: ["pei-song-di-qu", "[area]"],
+    },
   },
 
   // Cart and checkout. Static single-segment paths so they fit alongside the

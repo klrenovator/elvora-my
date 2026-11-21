@@ -6,6 +6,7 @@ import { categories } from "@/content/categories";
 import { getDictionary } from "@/lib/dictionary";
 import { pathFor } from "@/lib/routes";
 import { contact, isConfigured } from "@/lib/site";
+import { collarSizes, dogSizingPage, formatInches } from "@/content/pages-sizing";
 
 /** Renders an editorial page body from typed blocks, in the active language. */
 export function PageBlocks({ page, locale }: { page: ContentPage; locale: Locale }) {
@@ -23,15 +24,71 @@ export function PageBlocks({ page, locale }: { page: ContentPage; locale: Locale
           {page.pending[locale]}
         </p>
       ) : null}
+      {/* The size table carries its own caption for screen readers, because the
+          heading above it is prose and the table would otherwise be announced
+          as an unlabelled grid. */}
       {blocks.map((block, index) => (
-        <BlockView key={index} block={block} />
+        <BlockView key={index} block={block} locale={locale} />
       ))}
     </div>
   );
 }
 
-function BlockView({ block }: { block: Block }): ReactNode {
+function BlockView({ block, locale }: { block: Block; locale: Locale }): ReactNode {
   switch (block.type) {
+    case "sizes": {
+      const copy = dogSizingPage;
+      const cols = copy.columns[locale];
+      return (
+        <figure className="my-8">
+          <figcaption className="mb-3 text-[0.8125rem] tracking-[0.12em] uppercase text-[color:var(--color-ink-muted)]">
+            {copy.tableHeading[locale]}
+          </figcaption>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[32rem] border-collapse text-left text-[0.875rem]">
+              <thead>
+                <tr className="border-b border-[color:var(--color-line-strong)]">
+                  <th scope="col" className="py-2.5 pr-4 font-medium text-[color:var(--color-ink-strong)]">
+                    {cols.width}
+                  </th>
+                  <th scope="col" className="py-2.5 pr-4 font-medium text-[color:var(--color-ink-strong)]">
+                    {cols.range}
+                  </th>
+                  <th scope="col" className="py-2.5 pr-4 font-medium text-[color:var(--color-ink-strong)]">
+                    {cols.inches}
+                  </th>
+                  <th scope="col" className="py-2.5 font-medium text-[color:var(--color-ink-strong)]">
+                    {cols.suits}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {collarSizes.map((row) => (
+                  <tr
+                    key={`${row.width}-${row.minCm}`}
+                    className="border-b border-[color:var(--color-line)] last:border-0"
+                  >
+                    <td className="py-2.5 pr-4 tabular-nums text-[color:var(--color-ink-body)]">
+                      {row.width} mm
+                    </td>
+                    <td className="py-2.5 pr-4 tabular-nums text-[color:var(--color-ink-body)]">
+                      {row.minCm}–{row.maxCm} cm
+                    </td>
+                    <td className="py-2.5 pr-4 tabular-nums text-[color:var(--color-ink-muted)]">
+                      {formatInches(row.minCm)}–{formatInches(row.maxCm)} in
+                    </td>
+                    <td className="py-2.5 text-[color:var(--color-ink-body)]">{row.suits[locale]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-4 text-[0.8125rem] leading-relaxed text-[color:var(--color-ink-muted)]">
+            {copy.confirmStock[locale]}
+          </p>
+        </figure>
+      );
+    }
     case "h":
       return <h2 className="font-display first:mt-0">{block.text}</h2>;
     case "p":

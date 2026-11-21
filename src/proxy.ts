@@ -9,6 +9,19 @@ const CHECKOUT_SEGMENT: Record<string, string> = {
   ms: "pembayaran",
   zh: "jie-zhang",
 };
+
+/**
+ * Localized delivery-area section. Must stay in step with the route table.
+ *
+ * Like checkout, these files live once at `/[locale]/delivery/…` and are
+ * republished under a translated segment per language. The area slug itself is
+ * shared across languages, because a place name is not translated.
+ */
+const DELIVERY_SEGMENT: Record<string, string> = {
+  en: "delivery",
+  ms: "penghantaran-kawasan",
+  zh: "pei-song-di-qu",
+};
 const PUBLIC_FILE = /\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|txt|xml|json|webmanifest|woff|woff2|ttf|otf|mp3|pdf)$/i;
 
 /**
@@ -56,6 +69,15 @@ export function proxy(request: NextRequest) {
     if (segments[1] === checkoutSegment && checkoutSegment !== "checkout") {
       const url = request.nextUrl.clone();
       url.pathname = `/${first}/checkout`;
+      return NextResponse.rewrite(url);
+    }
+
+    // Delivery areas work the same way: `/ms/penghantaran-kawasan/ipoh` is
+    // served from `/[locale]/delivery/[area]` with the area slug preserved.
+    const deliverySegment = DELIVERY_SEGMENT[first];
+    if (segments[1] === deliverySegment && deliverySegment !== "delivery") {
+      const url = request.nextUrl.clone();
+      url.pathname = ["", first, "delivery", ...segments.slice(2)].join("/");
       return NextResponse.rewrite(url);
     }
 
