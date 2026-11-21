@@ -23,7 +23,7 @@ falling back to English.
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm test            # 1002 assertions across 18 suites
+npm test            # 1115 assertions across 19 suites
 npm run verify      # typecheck + lint + tests + build, in one command
 npm run build       # production build, all routes pre-rendered
 ```
@@ -185,6 +185,53 @@ Two rules are already encoded and tested in `paymentGuards`:
 Even after a gateway exists, an order may only become paid through a verified
 callback or the owner's explicit cash-received action. There is no path that
 infers payment from a status field.
+
+## Location and delivery pages
+
+Every area the shop names has a page, in all three languages:
+
+| Language | URL |
+| --- | --- |
+| English | `/en/delivery/kuala-lumpur` |
+| Bahasa Melayu | `/ms/penghantaran-kawasan/kuala-lumpur` |
+| Chinese | `/zh/pei-song-di-qu/kuala-lumpur` |
+
+The area slug is shared across languages — a place name is not translated — and
+the index at `/en/delivery` lists every area grouped by state.
+
+### Why these pages are not thin content
+
+The easy mistake with location pages is generating hundreds from a postcode
+dump. That produces near-duplicate doorway pages that rank for nothing and read
+as spam. This build deliberately does the opposite:
+
+- **34 named towns and cities**, each with a real state, a real postcode range
+  and a properly translated name — not every mukim in the country.
+- Each page states **its own** area, state and postcode, so no two titles or
+  descriptions are identical. A test asserts this.
+- The **commercial** copy is identical everywhere, because the arrangement
+  genuinely is: order, confirm on WhatsApp, delivery cost quoted before
+  dispatch, cash on arrival.
+
+### What the pages refuse to claim
+
+There is no delivery time, fee, courier name or coverage promise anywhere in
+this copy, because the owner has published none of those. Each page carries a
+**"What we do not promise"** block saying so explicitly, and a test fails the
+build if a phrase like "free delivery", "next day", a flat rate or a courier
+brand ever appears.
+
+East Malaysia pages (Sabah, Sarawak, Labuan) additionally explain that delivery
+is slower and costlier across the South China Sea — without inventing a figure.
+
+Structured data is a `Service` with `areaServed`, **not** a `LocalBusiness`.
+Claiming premises in 34 cities would be false structured data.
+
+### Adding an area
+
+Append to `src/content/delivery-areas.ts`. The pages, sitemap, internal links and
+language switching all derive from that list, so a new town appears everywhere at
+once — no other file changes.
 
 ## Product pages
 

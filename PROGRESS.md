@@ -3,7 +3,7 @@
 This file is the single source of truth for what has been built, what has been
 verified, and what comes next. Update it at the end of every working session.
 
-**Last updated:** Phase 2g completed (order detail and fulfilment view).
+**Last updated:** Phase 4 (partial) completed — location and delivery pages.
 
 ---
 
@@ -20,7 +20,7 @@ verified, and what comes next. Update it at the end of every working session.
 | 2e | Online payment provider (FPX / cards / DuitNow) | ⬜ Deferred by the owner — COD for now, approval required |
 | 3a | Supabase persistence: catalogue edits and orders stored permanently, RLS | ✅ Complete |
 | 3 | Multilingual completion for commerce surfaces (cart, checkout, forms, admin) | ⬜ Blocked by Phase 2 |
-| 4 | Nationwide location SEO: Malaysia geo database, location pages, internal linking | ⬜ Not started |
+| 4 | Nationwide location SEO: geo database, location pages, internal linking | 🔶 Area pages built (34 areas × 3 languages); location content pages pending |
 | 5 | Content marketing, AEO/GEO/LLMO assets, articles | ⬜ Deferred until Phase 2–4 |
 | 2f | Cash on Delivery, payment/order status tracking, WhatsApp + email contact | ✅ Complete |
 | 2g | Order detail and fulfilment view: full address, pickable lines, per-order actions | ✅ Complete |
@@ -687,6 +687,78 @@ database path is the same code.
 
 ---
 
+## Phase 4 — location and delivery pages (partial, completed)
+
+### What was built
+
+| Piece | Detail |
+| --- | --- |
+| Geo database | `src/content/delivery-areas.ts` — 34 towns and cities across 14 states, each with a state code, postcode data and names in three languages |
+| Area page | `/[locale]/delivery/[area]` — 34 × 3 = 102 pages |
+| Index | `/[locale]/delivery` — grouped by state, major cities first |
+| Routes | Localised section segment; area slug shared across languages |
+| Internal linking | Footer link from every page; categories on every area page; siblings in the same state; other major regions |
+| Sitemap | 70 new URLs with reciprocal hreflang |
+| Structured data | `Service` + `areaServed` + `City`, **not** `LocalBusiness` |
+
+Page count went from 87 to **192**.
+
+### The design decision that mattered
+
+The obvious implementation — generate a page per postcode — produces hundreds of
+near-duplicate doorway pages. That is a penalty risk, not an SEO win, and it
+reads as spam to a customer.
+
+Instead: 34 real places, each page specific about *its* geography, with the
+commercial arrangement stated identically everywhere because it genuinely is
+identical. Three tests enforce this:
+
+| Test | Catches |
+| --- | --- |
+| Titles and descriptions all distinct | Two areas sharing a title |
+| No postcode label repeats | Two pages printing the same postcode line |
+| Banned-phrase scan across all three languages | "Free delivery", "next day", a flat rate, a courier brand |
+
+The postcode test caught a real data error during the build: Subang Jaya and
+Puchong both genuinely sit under postcode 47, so both pages would have printed
+the identical line. Fixed by giving those two their real five-digit ranges
+(47500–47630 and 47100–47190) instead of the shared prefix.
+
+### What the pages refuse to say
+
+No delivery time. No fee. No courier name. No coverage promise. None of these
+have been published by the owner, so each page carries an explicit **"What we do
+not promise"** block and explains what actually happens: order, confirm on
+WhatsApp, delivery cost quoted before dispatch, cash on arrival.
+
+East Malaysia pages additionally explain the South China Sea crossing, again
+without a number.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| Every area names a real state | ✅ |
+| Every area named in all three languages, Chinese actually Chinese | ✅ |
+| No two areas display the same postcode label | ✅ after fixing Subang Jaya/Puchong |
+| All titles and descriptions distinct (102 each) | ✅ |
+| No forbidden commercial promise, all three languages | ✅ |
+| Route, hreflang and canonical correctness | ✅ verified over HTTP |
+| Translated paths resolve (proxy rewrite) | ✅ `/ms/…` and `/zh/…` return 200 |
+| Unknown area is 404 on every locale | ✅ |
+| Language switcher translates the URL | ✅ `switchPath` proven both ways |
+| Every sampled sitemap URL returns 200 | ✅ |
+| `tests/locations.test.ts` | ✅ 113 assertions |
+| `npm test` | ✅ 19 suites, 1115 assertions |
+| `npm run verify` | ✅ clean, 192 pages |
+
+**Deliberately not built yet:** the "location content page" half of Phase 4 —
+long-form editorial per city (e.g. a leather-care or gifting guide localised to
+Penang). Area pages must exist and be indexed first; publishing editorial for 34
+cities before there is traffic to justify it would be writing for a crawler.
+
+---
+
 ## Known gaps and deliberate deferrals
 
 1. **Persistence needs the owner to create the Supabase project.** The code,
@@ -714,8 +786,9 @@ database path is the same code.
    set; until then the UI renders no link rather than a placeholder. Phone,
    Instagram, Facebook and TikTok remain unset.
 7. **No order search or date filter.** The list shows the 100 most recent orders. Fine at launch volume; worth revisiting once there are more than a few hundred.
-8. **Location pages not built.** The geo database and page architecture are
-   Phase 4; building them before products exist would produce thin pages.
+8. **No location editorial yet.** Area pages exist for 34 places, but there is no
+   long-form per-city content. That is the second half of Phase 4, and it should
+   follow real traffic rather than precede it.
 9. **OG image** currently reuses the hero photograph; a dedicated 1200×630
    branded banner is pending (image generation limit reached this turn).
 10. **No analytics or consent banner yet.** Phase 6.
@@ -739,28 +812,26 @@ recommendation before launch**. Nothing in the code depends on the plan.
 
 ## Next task
 
-Everything needed to take a Cash on Delivery order, pack it, and record the cash
-is now built. The remaining items split into two groups.
+**Phase 4, second half — location editorial.** The 34 area pages exist and are
+indexed. What is missing is long-form content that earns a page its own ranking
+rather than relying on the geography alone: a leather-care or gifting guide
+localised per city, linked from its area page. Worth doing once there is traffic
+to justify it, which is why it is not bundled with the area pages.
 
-**Owner actions, not code.** These are blocked on decisions or accounts, not on
-development:
+**Alternatively, Phase 5 — content marketing and AEO.** Articles written for the
+questions customers actually ask (how to size a belt, full grain versus top
+grain in heat and humidity), structured for answer engines. This compounds with
+the location pages: an article linked from 34 city pages gets 34 entry points.
 
-1. Create the Supabase project, run `0001_init.sql`, `0003_cod.sql` and
-   `0002_storage.sql`, then `npm run db:seed` and `npm run db:verify`
-   (`docs/SUPABASE-SETUP.md`). Until then orders live in server memory.
-2. Set `NEXT_PUBLIC_WHATSAPP_NUMBER` and `NEXT_PUBLIC_CONTACT_EMAIL`. Both
-   channels are built and appear the moment they are set.
-3. Choose the Supabase plan — Free pauses after 7 days idle and has no backups,
-   so **Pro ($25/month) before real orders**.
-4. Approve online payment only when a merchant account exists. Phase 2e stays
-   deferred until then, by the owner's instruction.
+Either way, these owner actions unlock more than any further code:
 
-**Next development phase: Phase 4 — nationwide location SEO.** The commerce
-core is functional, so this is the largest piece of unbuilt scope in the original
-plan: a Malaysian state and area database, location pages (e.g.
-`/en/leather-goods/kuala-lumpur`), and the internal linking that makes them
-worth having. It was deliberately deferred until products existed; they do now.
+1. **Create the Supabase project** and run `0001_init.sql`, `0003_cod.sql`,
+   `0002_storage.sql`, then `npm run db:seed` and `npm run db:verify`. Until then
+   orders live in server memory and vanish on redeploy.
+2. **Set `NEXT_PUBLIC_WHATSAPP_NUMBER` and `NEXT_PUBLIC_CONTACT_EMAIL`.** Both
+   channels are built and appear the moment they are set — including on all 102
+   location pages, where they are currently the only missing element.
+3. **Choose the Supabase plan.** Free pauses after 7 days idle and has no
+   backups; **Pro ($25/month) before real orders**. Nothing is subscribed.
 
-Two smaller items are also unclaimed and can be picked up first if preferred:
-a dedicated 1200×630 OG banner (currently the hero photo is reused), and a
-consent banner with analytics (Phase 6).
+**Phase 2e (online payment) remains deferred by the owner's instruction.**

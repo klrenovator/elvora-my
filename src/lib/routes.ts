@@ -82,6 +82,24 @@ const routes = {
     path: { en: ["products", "[slug]"], ms: ["produk", "[slug]"], zh: ["chan-pin", "[slug]"] },
   },
 
+  /**
+   * Location pages.
+   *
+   * `/en/delivery/kuala-lumpur` and its siblings. The area slug is shared across
+   * languages because a place name is not translated — the surrounding copy is.
+   * Only the section segment differs, which keeps one canonical area identifier.
+   */
+  locations: {
+    path: { en: ["delivery"], ms: ["penghantaran-kawasan"], zh: ["pei-song-di-qu"] },
+  },
+  location: {
+    path: {
+      en: ["delivery", "[area]"],
+      ms: ["penghantaran-kawasan", "[area]"],
+      zh: ["pei-song-di-qu", "[area]"],
+    },
+  },
+
   // Cart and checkout. Static single-segment paths so they fit alongside the
   // existing [slug] route without creating a dynamic-segment conflict.
   cart: {
