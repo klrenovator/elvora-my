@@ -2,8 +2,9 @@ import type { MetadataRoute } from "next";
 import { locales, type Locale } from "@/i18n/config";
 import { site } from "@/lib/site";
 import { categories } from "@/content/categories";
-import { alternatePaths, type RouteKey } from "@/lib/routes";
+import { alternatePaths, pathFor as pathForPath, type RouteKey } from "@/lib/routes";
 import { contentPages, pageRouteKeys } from "@/lib/page-resolver";
+import { visibleProducts } from "@/content/products";
 import type { PageKey } from "@/content/types";
 
 /**
@@ -61,6 +62,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
   for (const category of categories) {
     const paths = alternatePaths(categoryRoutes[category.id]);
     for (const locale of locales) push(paths, locale, 0.9, "weekly");
+  }
+
+  // Products — published only, each with its own per-language slug.
+  for (const product of visibleProducts()) {
+    const paths = Object.fromEntries(
+      locales.map((locale) => [
+        locale,
+        pathForPath("product", locale, { slug: product.slug[locale] }),
+      ]),
+    ) as Record<Locale, string>;
+    for (const locale of locales) push(paths, locale, 0.85, "weekly");
   }
 
   // Editorial and trust pages

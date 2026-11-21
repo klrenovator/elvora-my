@@ -14,6 +14,8 @@ import {
 } from "@/lib/page-resolver";
 import { Breadcrumbs, CategoryCard, categoryRoutes } from "@/components/category-cards";
 import { FaqAccordion } from "@/components/faq-accordion";
+import { ProductCard } from "@/components/product-card";
+import { productsByCategory } from "@/content/products";
 import { Container, Eyebrow, Rule } from "@/components/ui";
 import { PageBlocks, RelatedCategories } from "@/lib/content-page";
 import {
@@ -102,6 +104,7 @@ function CategoryView({
   const dict = getDictionary(locale);
   const category = categories.find((item) => item.id === categoryId)!;
   const faqs = category.faqs[locale];
+  const products = productsByCategory(category.id);
   const others = categories.filter((item) => item.id !== category.id).slice(0, 4);
   const path = pathFor(categoryRoutes[category.id], locale);
 
@@ -196,6 +199,35 @@ function CategoryView({
           </div>
         </Container>
       </section>
+
+      {products.length > 0 ? (
+        <section aria-labelledby="category-products" className="py-16">
+          <Container>
+            <div className="flex items-end justify-between gap-6">
+              <h2
+                id="category-products"
+                className="font-display text-[1.5rem] leading-tight text-[color:var(--color-ink-strong)] sm:text-[1.75rem]"
+              >
+                {listingHeading[locale]}
+              </h2>
+              <p className="hidden max-w-xs text-right text-[0.75rem] leading-relaxed text-[color:var(--color-mist)] sm:block">
+                {listingNote[locale]}
+              </p>
+            </div>
+            <div className="mt-8 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+              {products.map((product, index) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  locale={locale}
+                  priority={index === 0}
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                />
+              ))}
+            </div>
+          </Container>
+        </section>
+      ) : null}
 
       <section className="py-16">
         <Container>
@@ -364,6 +396,18 @@ const guidanceIntro: Record<Locale, string> = {
   en: "Practical points worth knowing before you decide. None of them are sales claims.",
   ms: "Perkara praktikal yang wajar diketahui sebelum anda membuat keputusan. Tiada satu pun dakwaan jualan.",
   zh: "下单前值得知道的实用要点，都不是销售话术。",
+};
+
+const listingHeading: Record<Locale, string> = {
+  en: "Pieces in this category",
+  ms: "Barang dalam kategori ini",
+  zh: "本分类的产品",
+};
+
+const listingNote: Record<Locale, string> = {
+  en: "Prices are entered by us; where none is set, the product shows price on request.",
+  ms: "Harga dimasukkan oleh kami; jika belum ditetapkan, produk memaparkan harga atas permintaan.",
+  zh: "价格由我们手动输入；尚未定价的款式会显示「价格面议」。",
 };
 
 const answersLabel: Record<Locale, string> = {

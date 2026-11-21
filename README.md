@@ -23,6 +23,7 @@ falling back to English.
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
+npm test            # pricing, catalogue and language-switch assertions
 npm run build       # production build, all routes pre-rendered
 ```
 
@@ -35,6 +36,7 @@ src/
       layout.tsx            <html lang>, header, footer, Organization + WebSite JSON-LD
       page.tsx              homepage (hero, collections, grades, trust, FAQ, CTA)
       [slug]/page.tsx       categories + editorial pages (statically generated)
+      [slug]/[product]/     product pages, catalog segment localized per language
     sitemap.ts              multilingual sitemap with hreflang alternates
     robots.ts               robots.txt
     llms.txt/route.ts       plain-text summary for AI assistants
@@ -50,10 +52,53 @@ src/
     dictionary.ts           interface strings (chrome only)
     page-resolver.ts        slug → page resolution, slug-collision guard
     seo.ts                  metadata, canonical, hreflang, JSON-LD builders
+    pricing.ts              price resolution, formatting and availability (single source)
+    validate-catalogue.ts   build-time guard against bad product data
+    features.ts             flags for capabilities not yet implemented
     site.ts                 brand config and contact channels (nulls = not supplied)
   proxy.ts                  language entry routing, `/` → locale
 public/images/              temporary AI illustrations (see below)
 ```
+
+## Product pages
+
+Localized URLs, one per product per language:
+
+| Language | Pattern | Example |
+| --- | --- | --- |
+| English | `/en/products/<slug>` | `/en/products/cognac-full-grain-bifold-wallet` |
+| Malay | `/ms/produk/<slug>` | `/ms/produk/dompet-bifold-full-grain-cognac` |
+| Chinese | `/zh/chan-pin/<slug>` | `/zh/chan-pin/gan-yi-zong-quan-li-mian-dui-zhe-qian-bao` |
+
+All 21 product pages are pre-rendered at build time. A mismatched catalog
+segment (for example `/en/produk/…`) returns 404 rather than rendering the
+product under a duplicate URL.
+
+### How pricing works
+
+`src/lib/pricing.ts` is the only place a price string is ever produced.
+
+```ts
+type PriceState =
+  | { kind: "on-request" }
+  | { kind: "fixed"; amountSen: number; currency: "MYR"; compareAtSen?: number };
+```
+
+- `on-request` → the UI renders "Price on request" in the visitor's language and
+  **no `Offer` is emitted** in structured data.
+- `fixed` → formats as `RM` for the visitor's locale. `amountSen` is an integer
+  to avoid floating-point drift.
+- `compareAtSen` is honoured only when genuinely higher than the selling price,
+  so a fake discount cannot be produced by bad data.
+- Invalid values (`0`, negative, `NaN`, `Infinity`) fall back to on-request.
+
+To set a real price, edit the product in `src/content/products.ts`:
+
+```ts
+price: { kind: "fixed", amountSen: 24900, currency: "MYR" }, // RM 249.00
+```
+
+`npm test` and `npm run build` both fail if the catalogue is inconsistent.
 
 ## Business rules encoded in the code
 

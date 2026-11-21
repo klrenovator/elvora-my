@@ -200,3 +200,59 @@ export function itemListLd(items: { name: string; path: string }[]) {
     })),
   };
 }
+
+/* --------------------------------- Product --------------------------------- */
+
+/**
+ * Product structured data.
+ *
+ * `offers` is emitted ONLY when a real, administrator-entered price exists.
+ * An unpriced product gets valid Product markup without an offer rather than a
+ * fabricated price or a misleading placeholder — search engines penalise
+ * invented prices and customers distrust them.
+ */
+export function productLd(input: {
+  name: string;
+  description: string;
+  path: string;
+  sku: string;
+  category: string;
+  images: string[];
+  leatherType: string;
+  manufacturerCountry: string;
+  price:
+    | { kind: "on-request" }
+    | { kind: "fixed"; amountSen: number; formatted: string };
+}) {
+  const base: Record<string, unknown> = {
+    "@type": "Product",
+    name: input.name,
+    description: input.description,
+    sku: input.sku,
+    category: input.category,
+    image: input.images,
+    material: input.leatherType,
+    brand: { "@type": "Brand", name: `${site.brandName}${site.brandSuffix}` },
+    manufacturer: {
+      "@type": "Organization",
+      name: `${site.brandName}${site.brandSuffix}`,
+      address: { "@type": "PostalAddress", addressCountry: input.manufacturerCountry },
+    },
+    url: absoluteUrl(input.path),
+  };
+
+  if (input.price.kind === "fixed") {
+    base.offers = {
+      "@type": "Offer",
+      price: (input.price.amountSen / 100).toFixed(2),
+      priceCurrency: site.currency,
+      availability: "https://schema.org/InStock",
+      url: absoluteUrl(input.path),
+      seller: { "@id": `${site.url}/#organization` },
+      // No shippingDetails or merchantReturnPolicy here: rates and windows are
+      // configuration, not published facts, and inventing them would mislead.
+    };
+  }
+
+  return base;
+}
