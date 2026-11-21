@@ -3,7 +3,7 @@
 This file is the single source of truth for what has been built, what has been
 verified, and what comes next. Update it at the end of every working session.
 
-**Last updated:** Phase 2 step 1 completed (product model + manual pricing).
+**Last updated:** Phase 2b completed (cart and checkout handoff).
 
 ---
 
@@ -14,8 +14,9 @@ verified, and what comes next. Update it at the end of every working session.
 | 1 | Foundation: architecture, design system, i18n, 7 categories, static pages, homepage, SEO infrastructure | ✅ Complete |
 | 2 | E-commerce | 🔶 In progress |
 | 2a | Product model, product pages, manual pricing engine, variant/availability display | ✅ Complete |
-| 2b | Cart, checkout handoff, order records | ⬜ Next |
-| 2c | Admin product management screen (add/edit/publish/pricing) | ⬜ Pending 2b |
+| 2b | Cart, checkout handoff, Malaysian address validation | ✅ Complete |
+| 2c | Admin product management screen (add/edit/publish/pricing) | ⬜ Next |
+| 2d | Payment provider integration (FPX / cards / DuitNow), order records | ⬜ Blocked on owner's merchant account |
 | 3 | Multilingual completion for commerce surfaces (cart, checkout, forms, admin) | ⬜ Blocked by Phase 2 |
 | 4 | Nationwide location SEO: Malaysia geo database, location pages, internal linking | ⬜ Not started |
 | 5 | Content marketing, AEO/GEO/LLMO assets, articles | ⬜ Deferred until Phase 2–4 |
@@ -168,12 +169,64 @@ inserts a non-breaking space (U+00A0) in the Malay locale. It renders
 identically but would break string comparison and any downstream export, so
 `formatSen()` now normalises it to a regular space.
 
+## Phase 2b — cart and checkout (completed)
+
+### Cart (`src/lib/cart-store.ts`)
+React-free so the commercial rules can be tested directly.
+
+- **Unpriced products cannot enter the cart.** `addLine` re-checks the price and
+  refuses with reason `not-priced`. There is nothing to charge, so allowing it
+  would create an unpayable basket.
+- **Price changes are surfaced, never silently applied.** Each line stores the
+  price it was added at; `reconcile()` compares that snapshot with the live
+  price and raises `price-changed`. The customer sees the new total and must
+  explicitly accept it before checkout unlocks.
+- **Tampering cannot lower a price.** `localStorage` is user-editable, so the
+  stored snapshot is only ever used to *detect* change — totals always come from
+  the live catalogue. Editing the stored price produces a visible notice, not a
+  discount.
+- **Quantities are clamped to real stock**, and a deleted or unpublished product
+  is flagged `unavailable` and contributes nothing to the subtotal.
+- `parseStoredCart()` validates every field: wrong types, negative quantities,
+  absurd quantities and non-objects are dropped.
+- The catalogue lookup is **injectable** (`reconcile(cart, lookup)`), which is
+  what made the cart testable now and will let it read admin-edited data later.
+
+### Checkout (`src/lib/address.ts`, `src/components/checkout-form.tsx`)
+- Guest checkout, no account required.
+- Malaysian validation: phone (accepts `012-345 6789`, `+60 12 345 6789`,
+  `60123456789`), 5-digit postcode, email, and a state from the official
+  16-state/territory list including all three federal territories.
+- East Malaysia (Sabah, Sarawak, Labuan) triggers an accurate note that rates are
+  higher — without quoting a figure we cannot verify.
+- **Payment is not connected and says so.** The button reads "Send this order as
+  an enquiry", the form produces a copyable order summary, and nothing is
+  submitted to a server. No payment is taken and no order is implied.
+- The presentational layer (`CheckoutFields`) is separated from the cart-aware
+  container so its markup and validation rendering can be rendered and verified
+  without a browser.
+
+### Localized URLs
+`/en/cart` · `/ms/troli` · `/zh/gou-wu-che`
+`/en/checkout` · `/ms/pembayaran` · `/zh/jie-zhang`
+
+Cart and checkout are `noindex` and excluded from the sitemap, since they carry
+no standalone search value and would compete with category pages.
+
 ## Verified in this session
 
 | Check | Result |
 | --- | --- |
-| `npm run build` | ✅ 78 routes, all static |
-| `npm test` | ✅ 30 assertions pass |
+| `npm run build` | ✅ 84 routes, all static |
+| `npm test` | ✅ 145 assertions pass |
+| Cart/checkout URLs in all 3 languages | ✅ 200, correct localized H1 |
+| Cart + checkout noindex | ✅ `noindex, follow` |
+| Cart/checkout absent from sitemap | ✅ verified |
+| Unpriced product refused by cart | ✅ reason `not-priced` |
+| Price change detected, not applied silently | ✅ total uses current price |
+| Tampered localStorage cannot cut price | ✅ raises notice instead |
+| East Malaysia note only for SBH/SWK/LBN | ✅ verified per state |
+| Payment honesty notice in en/ms/zh | ✅ verified server-rendered |
 | Product pages (all 3 languages) | ✅ 200, with correct localized slugs |
 | Wrong catalog segment (`/en/produk/…`) | ✅ 404 |
 | Unpriced product shows "Price on request" | ✅ in en, ms, zh |
@@ -223,18 +276,17 @@ should be eyeballed on a real device in the next session.
 
 ## Next task
 
-**Phase 2b — cart and checkout handoff.**
+**Phase 2c — admin product management.**
 
-1. Add a cart context (client-side, persisted to `localStorage`) holding
-   product id, variant id, quantity and the price captured at the time of
-   adding.
-2. Enforce the pricing rule in the cart: an item that is `on-request` cannot be
-   added; a price change after adding must be surfaced, not silently applied.
-3. Build `/en/cart`, `/ms/troli`, `/zh/gou-wu-che` with localized copy, quantity
-   editing, removal, and a running subtotal — plus an explicit statement that
-   shipping is calculated at checkout.
-4. Add the checkout entry point and a guest-checkout form (name, phone, address,
-   postcode, state/district) validated for Malaysian formats, with the payment
-   step stubbed and clearly marked as not yet live.
-5. Flip `features.cart` to `true` in `src/lib/features.ts` in the same commit,
-   so no button claims a capability the build does not have.
+1. Add authentication (single-owner login) with a signed session cookie and
+   rate-limited login, no third-party account provider.
+2. Build `/admin/products`: list, filter by category/status, and create/edit.
+3. Edit every field the model already supports — including **manual price entry**,
+   which must be the only way a price is ever set. The admin form should make
+   "price on request" a deliberate choice rather than a default.
+4. Guard against the mistakes the catalogue validator already catches, so the
+   owner sees the error in the form rather than in a failed build.
+5. Decide the persistence question explicitly: the current catalogue is
+   compiled-in TypeScript. Either move to a database (Vercel Postgres / Neon)
+   or keep file-based content with a documented edit workflow. This choice
+   should be made with the owner, because it determines hosting cost.

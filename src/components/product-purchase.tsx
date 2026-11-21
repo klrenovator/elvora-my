@@ -2,39 +2,39 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Locale } from "@/i18n/config";
 import type { Product } from "@/content/types";
 import { getDictionary } from "@/lib/dictionary";
 import { pathFor } from "@/lib/routes";
 import { availabilityCopy, resolveAvailability, type ResolvedPrice } from "@/lib/pricing";
+import { useCart } from "@/components/cart-provider";
 
 /**
  * Variant selector and purchase actions.
  *
- * Ordering is intentionally disabled in this phase: cart and checkout belong to
- * the next step. The component therefore tells the truth about what it can do —
- * a priced and stocked item shows an enabled "Add to cart" placeholder marked
- * as not yet live, and an unpriced item shows "Request a quote" instead. No
- * button ever pretends to complete a purchase it cannot complete.
+ * Add to cart goes through the cart store, which refuses unpriced items. If the
+ * store rejects the add, the button reflects the real reason rather than
+ * showing a false success.
  */
 export function ProductPurchase({
   product,
   locale,
   price,
-  cartEnabled,
 }: {
   product: Product;
   locale: Locale;
   price: ResolvedPrice;
-  /** False until the cart is implemented, so no button lies about its effect. */
-  cartEnabled: boolean;
 }) {
   const dict = getDictionary(locale);
+  const router = useRouter();
+  const { add } = useCart();
   const availability = resolveAvailability(product);
   const copy = availabilityCopy(availability, locale);
 
   const [colourId, setColourId] = useState(product.colours[0]?.id ?? "");
   const [sizeId, setSizeId] = useState(product.sizes[0]?.id ?? "");
+  const [feedback, setFeedback] = useState<"none" | "added" | "blocked">("none");
 
   const selectedVariant = useMemo(
     () =>
@@ -46,7 +46,7 @@ export function ProductPurchase({
   );
 
   const orderable =
-    price.kind === "fixed" && !!selectedVariant && selectedVariant.stock > 0 && cartEnabled;
+    price.kind === "fixed" && !!selectedVariant && selectedVariant.stock > 0;
 
   const sizesForColour = useMemo(
     () =>
@@ -58,6 +58,13 @@ export function ProductPurchase({
       }),
     [product, colourId],
   );
+
+  function handleAdd() {
+    if (!selectedVariant) return;
+    const result = add(product, selectedVariant.id, 1);
+    setFeedback(result.ok ? "added" : "blocked");
+    if (result.ok) router.refresh();
+  }
 
   return (
     <div className="mt-8">
@@ -123,7 +130,10 @@ export function ProductPurchase({
                 <button
                   key={colour.id}
                   type="button"
-                  onClick={() => setColourId(colour.id)}
+                  onClick={() => {
+                    setColourId(colour.id);
+                    setFeedback("none");
+                  }}
                   aria-pressed={active}
                   className={`inline-flex items-center gap-2 border px-3 py-2 text-[0.8125rem] transition-colors ${
                     active
@@ -159,7 +169,10 @@ export function ProductPurchase({
                 <button
                   key={size.id}
                   type="button"
-                  onClick={() => setSizeId(size.id)}
+                  onClick={() => {
+                    setSizeId(size.id);
+                    setFeedback("none");
+                  }}
                   aria-pressed={active}
                   className={`border px-3 py-2 text-left text-[0.8125rem] transition-colors ${
                     active
@@ -190,11 +203,10 @@ export function ProductPurchase({
         {orderable ? (
           <button
             type="button"
-            disabled
-            aria-disabled="true"
-            className="inline-flex h-12 cursor-not-allowed items-center justify-center bg-[color:var(--color-espresso)]/40 px-7 text-[0.75rem] font-medium tracking-[0.16em] uppercase text-[color:var(--color-ivory)]"
+            onClick={handleAdd}
+            className="inline-flex h-12 items-center justify-center bg-[color:var(--color-espresso)] px-7 text-[0.75rem] font-medium tracking-[0.16em] uppercase text-[color:var(--color-ivory)] transition-colors hover:bg-[color:var(--color-cognac-deep)]"
           >
-            {dict.product.addToCart} — {dict.product.unavailable}
+            {dict.cart.addToCart}
           </button>
         ) : price.kind === "on-request" ? (
           <Link
@@ -222,15 +234,32 @@ export function ProductPurchase({
         </Link>
       </div>
 
-      {selectedVariant ? (
-        <p className="mt-4 text-[0.75rem] text-[color:var(--color-mist)]">
-          {dict.product.sku}: {selectedVariant.sku ?? product.sku}
+      {/* Feedback: reflects what actually happened */}
+      {feedback === "added" ? (
+        <p role="status" className="mt-4 flex flex-wrap items-center gap-3 text-[0.8125rem] text-[color:var(--color-ink-body)]">
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className="text-[#5d7a4e]">
+              ✓
+            </span>
+            {dict.cart.added}
+          </span>
+          <Link
+            href={pathFor("cart", locale)}
+            className="border-b border-[color:var(--color-line-strong)] pb-0.5 text-[color:var(--color-cognac)] hover:border-[color:var(--color-cognac)]"
+          >
+            {dict.cart.viewCart} →
+          </Link>
         </p>
-      ) : (
-        <p className="mt-4 text-[0.75rem] text-[color:var(--color-mist)]">
-          {dict.product.sku}: {product.sku}
+      ) : null}
+      {feedback === "blocked" ? (
+        <p role="status" className="mt-4 text-[0.8125rem] text-[color:var(--color-cognac-deep)]">
+          {dict.cart.issueNowOnRequest}
         </p>
-      )}
+      ) : null}
+
+      <p className="mt-4 text-[0.75rem] text-[color:var(--color-mist)]">
+        {dict.product.sku}: {selectedVariant?.sku ?? product.sku}
+      </p>
     </div>
   );
 }

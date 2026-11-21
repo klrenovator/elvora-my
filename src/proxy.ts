@@ -2,6 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { defaultLocale, isLocale, locales } from "@/i18n/config";
 
 const LANGUAGE_COOKIE = "elvora_lang";
+
+/** Localized checkout paths. Must stay in step with the route table. */
+const CHECKOUT_SEGMENT: Record<string, string> = {
+  en: "checkout",
+  ms: "pembayaran",
+  zh: "jie-zhang",
+};
 const PUBLIC_FILE = /\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|txt|xml|json|webmanifest|woff|woff2|ttf|otf|mp3|pdf)$/i;
 
 /**
@@ -37,6 +44,16 @@ export function proxy(request: NextRequest) {
   const first = segments[0];
 
   if (first && isLocale(first)) {
+    // Checkout is stored once at /[locale]/checkout but published at a natural
+    // path per language. Rewrite (not redirect) so the visitor keeps the
+    // localized URL they followed.
+    const checkoutSegment = CHECKOUT_SEGMENT[first];
+    if (segments[1] === checkoutSegment && checkoutSegment !== "checkout") {
+      const url = request.nextUrl.clone();
+      url.pathname = `/${first}/checkout`;
+      return NextResponse.rewrite(url);
+    }
+
     // Remember the language once the visitor reaches a real localised page.
     const response = NextResponse.next();
     if (request.cookies.get(LANGUAGE_COOKIE)?.value !== first) {

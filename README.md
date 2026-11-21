@@ -60,6 +60,42 @@ src/
 public/images/              temporary AI illustrations (see below)
 ```
 
+## Cart and checkout
+
+| Language | Cart | Checkout |
+| --- | --- | --- |
+| English | `/en/cart` | `/en/checkout` |
+| Malay | `/ms/troli` | `/ms/pembayaran` |
+| Chinese | `/zh/gou-wu-che` | `/zh/jie-zhang` |
+
+Both are `noindex` and excluded from the sitemap — they carry no standalone
+search value and would otherwise compete with category pages.
+
+### How the cart enforces the pricing rules
+
+`src/lib/cart-store.ts` holds the logic and is free of React so it can be tested
+directly:
+
+- An unpriced product **cannot** be added — there is nothing to charge.
+- Each line stores the price it was added at. `reconcile()` compares that
+  snapshot with the live price and raises `price-changed`, which the customer
+  must explicitly accept before checkout unlocks. Prices are never silently
+  updated.
+- Totals always come from the live catalogue, so editing `localStorage` (which
+  users can do) produces a visible notice rather than a discount.
+- Quantities are clamped to real stock; delisted products are flagged and
+  contribute nothing to the subtotal.
+
+### Payment status
+
+Payment is **not connected**. `features.payments` is `false`, so checkout
+collects and validates the delivery address, then produces a copyable order
+summary — it does not take payment or submit an order. The page says this
+plainly rather than implying a completed purchase.
+
+To go live, connect a Malaysian provider (FPX, cards, DuitNow), then flip
+`features.payments` in `src/lib/features.ts` in the same commit.
+
 ## Product pages
 
 Localized URLs, one per product per language:

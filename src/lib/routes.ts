@@ -81,6 +81,15 @@ const routes = {
   product: {
     path: { en: ["products", "[slug]"], ms: ["produk", "[slug]"], zh: ["chan-pin", "[slug]"] },
   },
+
+  // Cart and checkout. Static single-segment paths so they fit alongside the
+  // existing [slug] route without creating a dynamic-segment conflict.
+  cart: {
+    path: { en: ["cart"], ms: ["troli"], zh: ["gou-wu-che"] },
+  },
+  checkout: {
+    path: { en: ["checkout"], ms: ["pembayaran"], zh: ["jie-zhang"] },
+  },
 } satisfies Record<string, RouteDef>;
 
 export type RouteKey = keyof typeof routes;

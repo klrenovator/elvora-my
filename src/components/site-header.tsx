@@ -9,6 +9,7 @@ import { pathFor } from "@/lib/routes";
 import { categories } from "@/content/categories";
 import { Logo } from "@/components/logo";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { CartIndicator } from "@/components/cart-indicator";
 
 const categoryRoutes = {
   "mens-wallets": "mensWallets",
@@ -160,6 +161,7 @@ export function SiteHeader({ locale }: { locale: Locale }) {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <CartIndicator locale={locale} />
           <LanguageSwitcher locale={locale} />
 
           {/* Mobile menu trigger */}
@@ -239,6 +241,7 @@ export function SiteHeader({ locale }: { locale: Locale }) {
                       ["careGuide", dict.nav.care],
                       ["about", dict.nav.about],
                       ["faq", dict.nav.faq],
+                      ["cart", dict.cart.title],
                       ["contact", dict.nav.contact],
                     ] as const
                   ).map(([key, label]) => (
