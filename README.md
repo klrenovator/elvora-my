@@ -23,7 +23,7 @@ falling back to English.
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm test            # 364 assertions across 9 suites
+npm test            # 536 assertions across 13 suites
 npm run build       # production build, all routes pre-rendered
 ```
 
@@ -33,11 +33,12 @@ npm run build       # production build, all routes pre-rendered
 src/
   app/
     [locale]/
+      checkout/actions.ts   records an order after re-pricing it server-side
       layout.tsx            <html lang>, header, footer, Organization + WebSite JSON-LD
       page.tsx              homepage (hero, collections, grades, trust, FAQ, CTA)
       [slug]/page.tsx       categories + editorial pages (statically generated)
       [slug]/[product]/     product pages, catalog segment localized per language
-    admin/                owner-only product management (outside the locale tree)
+    admin/                owner-only product and order management (outside locales)
     sitemap.ts              multilingual sitemap with hreflang alternates
     robots.ts               robots.txt
     llms.txt/route.ts       plain-text summary for AI assistants
@@ -57,6 +58,10 @@ src/
     validate-catalogue.ts   build-time guard against bad product data
     features.ts             flags for capabilities not yet implemented
     site.ts                 brand config and contact channels (nulls = not supplied)
+    orders.ts               order records, references, request validation
+    order-pricing.ts        server-side re-pricing (the authority on totals)
+    order-repository.ts     order persistence boundary (memory today)
+    payments/provider.ts    payment provider boundary + payment guards
     admin/                  auth, session cookies, product form rules
     catalogue/repository.ts the persistence boundary (static today, database-ready)
   components/admin/         product editor
@@ -91,15 +96,39 @@ directly:
 - Quantities are clamped to real stock; delisted products are flagged and
   contribute nothing to the subtotal.
 
-### Payment status
+### Orders and payment status
 
-Payment is **not connected**. `features.payments` is `false`, so checkout
-collects and validates the delivery address, then produces a copyable order
-summary — it does not take payment or submit an order. The page says this
-plainly rather than implying a completed purchase.
+Checkout **records a real order**: it validates the address on the server,
+re-prices every line from the catalogue, and stores the result with a reference
+the customer can quote. The confirmation screen shows that reference.
 
-To go live, connect a Malaysian provider (FPX, cards, DuitNow), then flip
-`features.payments` in `src/lib/features.ts` in the same commit.
+Payment is **not connected**. `features.payments` is `false`, so an order is
+recorded as `pending-payment` and no money is taken. The page says this plainly
+rather than implying a completed purchase.
+
+**The client's total is never trusted.** The browser sends what it thinks the
+order costs; the server re-prices from the catalogue and *refuses* if the two
+disagree. Silently correcting it would mean charging a figure the customer
+never saw, so the customer is sent back to review their cart instead.
+
+Orders are stored in server memory (`MemoryOrderRepository`) — real, but lost on
+restart, and both the confirmation screen and `/admin/orders` say so. Swapping in
+a database is one file, the same as the catalogue.
+
+### Connecting a payment provider
+
+`src/lib/payments/provider.ts` defines the boundary. Implement `PaymentProvider`
+against the provider's sandbox, then flip `features.payments` in
+`src/lib/features.ts` **in the same commit that the sandbox test passes** —
+never before. Two rules are already encoded and tested in `paymentGuards`:
+
+1. A paid amount must match the order total **exactly**. Partial payments,
+   overpayments and currency mix-ups are refused and reconciled by hand.
+2. Only a `pending-payment` order may become paid. A duplicate or conflicting
+   callback must not double-charge or revive a cancelled order.
+
+There is no code path that marks an order paid other than a verified provider
+callback, and no manual override in the admin.
 
 ## Product pages
 
@@ -249,6 +278,7 @@ a database is one file — see "Open question" in [PROGRESS.md](./PROGRESS.md).
 | `NEXT_PUBLIC_SITE_URL` | No | Canonical origin used in metadata, sitemap and hreflang. Defaults to `https://elvora.my`. |
 | `ADMIN_PASSWORD_HASH` | For admin | Password hash from `npm run admin:hash`. Without it the admin refuses all logins. |
 | `ADMIN_SESSION_SECRET` | For admin | Signs session cookies. Must be 32+ characters. |
+| `DATABASE_URL` | Not yet used | Where a Postgres repository would connect. Nothing reads it today. |
 
 The storefront needs none of these; only the admin area does.
 

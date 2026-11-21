@@ -3,7 +3,7 @@
 This file is the single source of truth for what has been built, what has been
 verified, and what comes next. Update it at the end of every working session.
 
-**Last updated:** Phase 2c completed (admin product management).
+**Last updated:** Phase 2d completed (orders, server-side pricing, payment boundary).
 
 ---
 
@@ -16,7 +16,8 @@ verified, and what comes next. Update it at the end of every working session.
 | 2a | Product model, product pages, manual pricing engine, variant/availability display | ✅ Complete |
 | 2b | Cart, checkout handoff, Malaysian address validation | ✅ Complete |
 | 2c | Admin product management screen (add/edit/publish/pricing) | ✅ Complete (persistence decision pending) |
-| 2d | Payment provider integration (FPX / cards / DuitNow), order records | ⬜ Next — blocked on owner's merchant account |
+| 2d | Order records, server-side re-pricing, payment-provider boundary | ✅ Complete |
+| 2e | Payment provider implementation (FPX / cards / DuitNow) | ⬜ Blocked on owner's merchant account |
 | 3 | Multilingual completion for commerce surfaces (cart, checkout, forms, admin) | ⬜ Blocked by Phase 2 |
 | 4 | Nationwide location SEO: Malaysia geo database, location pages, internal linking | ⬜ Not started |
 | 5 | Content marketing, AEO/GEO/LLMO assets, articles | ⬜ Deferred until Phase 2–4 |
@@ -255,6 +256,105 @@ reading generated HTML and the compiled CSS rather than screenshots. This
 should be eyeballed on a real device in the next session.
 
 ---
+## Phase 2d — orders, server-side pricing and the payment boundary (completed)
+
+Payment itself is still blocked on a merchant account, so this phase built the
+three parts that are not: real order records, pricing that the browser cannot
+tamper with, and a provider boundary the eventual integration drops into.
+
+### Server-side pricing is the authority (`src/lib/order-pricing.ts`)
+
+The cart in the browser is a convenience. Before an order is recorded, every
+line is looked up again against the catalogue and priced from source.
+
+- **The client's total is never trusted.** It is compared with the server's and
+  a difference is a *refusal*, not an adjustment — silently correcting it would
+  mean charging a figure the customer never saw. A hidden field claiming `1`
+  sen produces "the order total has changed", not a discount.
+- Every rule the cart enforces is re-checked here, because a client-side check
+  that matters commercially is only a suggestion: product exists, is published,
+  variant still exists, product still has a fixed price, stock covers the
+  quantity.
+- **One bad line fails the whole order.** Partial acceptance would charge for
+  something the customer did not fully agree to.
+- Totals are integer sen throughout, so there is no floating-point drift to
+  round away.
+
+### Order records (`src/lib/orders.ts`, `src/lib/order-repository.ts`)
+
+- An order **copies** names, SKUs and prices at the moment of ordering rather
+  than referencing the product. A later price change must not rewrite history.
+- References are `ELV-XXXXXX` from an alphabet with no `0/O` or `1/I`, so they
+  can be read over the phone. Not a security token — it identifies an order, it
+  does not authorise access to one.
+- Shipping is stored as `null`, not `0`, because it is quoted after the order.
+  A zero would be a false claim.
+- Persistence sits behind the same kind of interface as the catalogue:
+  `MemoryOrderRepository` is the default and carries `durable = false`. It is
+  real but not permanent, and the confirmation screen and admin both say so.
+
+### Payment boundary (`src/lib/payments/provider.ts`)
+
+- `PaymentProvider` defines `createSession` / `verifyCallback`, and
+  `UnconfiguredPaymentProvider` is the only implementation. Every method throws
+  rather than returning a plausible stub — a stub returning a fake redirect URL
+  is exactly the thing that reaches production and takes money it cannot
+  account for.
+- `paymentGuards` encodes the rules every future provider must satisfy: a paid
+  amount must match the total **exactly** (no tolerance, no partial), and only a
+  `pending-payment` order may become paid. Both are tested.
+- There is **no code path that marks an order paid** except a verified
+  callback. Nothing in the admin offers a manual "mark paid" button.
+
+### Checkout (`src/app/[locale]/checkout/actions.ts`)
+
+The order of operations is the design: validate the address on the server, check
+the request shape, re-price from the catalogue, refuse a total disagreement,
+then record the order as `pending-payment`. If storage fails, the customer is
+told the order could not be recorded and that nothing was been charged — the
+one failure mode that matters is reporting success for an order nobody stored.
+
+The confirmation screen shows the reference, states plainly that payment is not
+live, and warns when the record is not durable.
+
+### Owner visibility (`/admin/orders`)
+
+An order nobody can read is not much of a record. The owner sees every placed
+order with reference, date, customer, destination, item count, total and status.
+Read-only by design: status changes belong to a provider callback, not a button.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| Tampered client total (1 sen) | ✅ refused, no order stored |
+| Inflated client total | ✅ refused |
+| Missing client total | ✅ prices server-side at the real figure |
+| Unpriced product cannot be ordered | ✅ `not-priced` |
+| Unpublished product refused | ✅ |
+| Quantity above stock refused | ✅ `insufficient-stock` |
+| One bad line fails the whole order | ✅ |
+| Blank name/phone/email/address/postcode/city/state | ✅ refused, field-level |
+| Non-Malaysian state refused | ✅ |
+| Storage failure | ✅ refuses, says nothing was charged |
+| Stored order status | ✅ always `pending-payment`, never paid |
+| Payment amount mismatch (partial/over/zero/fractional) | ✅ refused |
+| Re-paying a paid order | ✅ refused |
+| Unconfigured provider | ✅ refuses session creation and callbacks |
+| `/admin/orders` unauthenticated | ✅ 307 → login |
+| `/admin/orders` authenticated | ✅ 200, honest about in-memory storage |
+| Checkout pages (en/ms/zh) | ✅ 200 |
+| `npm test` | ✅ 536 assertions across 13 suites |
+| `npm run typecheck` / `npm run lint` / `npm run build` | ✅ clean, 87 pages |
+
+**Note on verification:** the server action is covered by 53 direct assertions
+calling it with real `FormData`, and the checkout UI by a further 37 rendered
+assertions. Driving the RSC wire format by hand over `curl` proved to be
+framework-internal; the action was confirmed reachable and executing over HTTP,
+but its logic is verified by calling it directly rather than through a
+reconstructed payload.
+
+---
 
 ## Known gaps and deliberate deferrals
 
@@ -262,35 +362,42 @@ should be eyeballed on a real device in the next session.
    build and no database is connected, so the admin is read-only by design. The
    repository interface and the UI are finished; connecting a database is the
    remaining step (see "Open question").
-2. **No payments or orders.** Phase 2d. Payment providers (FPX/cards/DuitNow)
-   need owner-supplied merchant accounts. Nothing claims a payment path is live.
-3. **Images cannot be uploaded from the admin.** A product photo can only be
+2. **No payments.** Phase 2e. Orders are recorded, re-priced and viewable, but
+   no provider is connected (FPX/cards/DuitNow need an owner merchant account).
+   Every order is `pending-payment` and nothing claims otherwise.
+3. **Order records are not durable.** They live in server memory and are lost
+   on restart. Real but temporary, stated in both the confirmation screen and
+   the admin list. A database-backed repository is the fix (see "Open
+   question").
+4. **Images cannot be uploaded from the admin.** A product photo can only be
    added in the repository, so publishing requires one to exist already. Upload
    needs a storage bucket and is deliberately not faked.
-4. **The login rate limit is per instance and in memory.** It resets on
+5. **The login rate limit is per instance and in memory.** It resets on
    redeploy and is not shared between serverless instances. Adequate for a
    single owner; documented rather than overbuilt.
-5. **WhatsApp, phone and email are unset** in `src/lib/site.ts`. The UI detects
+6. **WhatsApp, phone and email are unset** in `src/lib/site.ts`. The UI detects
    this and renders a "being finalised" notice instead of a dead link. Nothing
    invented.
-6. **Location pages not built.** The geo database and page architecture are
+7. **Location pages not built.** The geo database and page architecture are
    Phase 4; building them before products exist would produce thin pages.
-7. **OG image** currently reuses the hero photograph; a dedicated 1200×630
+8. **OG image** currently reuses the hero photograph; a dedicated 1200×630
    branded banner is pending (image generation limit reached this turn).
-8. **No analytics or consent banner yet.** Phase 6.
-9. **No Vietnamese/other locales** — intentionally exactly three.
+9. **No analytics or consent banner yet.** Phase 6.
+10. **No Vietnamese/other locales** — intentionally exactly three.
 
 ---
 
-## Open question — catalogue persistence
+## Open question — catalogue and order persistence
 
-The admin UI, validation and authorisation are complete and verified. What is
-**not** decided is where saved products live. Two honest options:
+The admin UI, validation and authorisation are complete and verified, and orders
+are recorded and re-priced correctly. What is **not** decided is **where that
+data lives**. This now blocks two things at once: catalogue edits cannot persist,
+and orders are lost when the server restarts. Two honest options:
 
 | Option | What it means | Cost | Trade-off |
 | --- | --- | --- | --- |
 | **A. Keep compiled content** | Owner edits `src/content/products.ts`, commits, redeploys. The `/admin` screen stays a review-and-validate tool. | Free | Every price change is a deploy; no non-technical editing. |
-| **B. Connect Vercel Postgres / Neon** | Implement `PostgresProductRepository`, set `DATABASE_URL`. The admin becomes a real CMS. | ~$0–20/month at this scale | A managed database to back up and maintain. |
+| **B. Connect Vercel Postgres / Neon** | Implement `PostgresProductRepository` and `PostgresOrderRepository`, set `DATABASE_URL`. The admin becomes a real CMS and orders survive restarts. | ~$0–20/month at this scale | A managed database to back up and maintain. |
 
 Nothing further is blocked by this except the write path itself: the storefront,
 cart and checkout read through the same interface, so either choice is a
@@ -302,12 +409,18 @@ needs the owner's decision on hosting cost.
 
 ## Next task
 
-**Phase 2d — payment integration.** Blocked until the owner supplies a merchant
-account (FPX / cards / DuitNow). Until then `/checkout` deliberately ends at an
-honest "payment not yet live" state rather than a fake success page.
+**Phase 2e — payment provider integration.** Blocked until the owner supplies a
+merchant account (FPX / cards / DuitNow) and sandbox credentials.
 
-Work that can proceed without a merchant account:
-1. Order records and an order-number scheme, so a paid order has somewhere to go.
-2. Server-side re-pricing at checkout (never trust a client total).
-3. A provider-agnostic payment interface, mirroring the repository pattern, so
-   the provider is a single implementation once credentials exist.
+Everything around it is now in place, so the remaining work is bounded:
+
+1. Implement `PaymentProvider` against the provider's sandbox: session creation,
+   redirect, and a signature-verified callback.
+2. Verify the callback against `paymentGuards` — exact amount, and only a
+   `pending-payment` order may transition.
+3. Flip `features.payments` in the same commit that the sandbox test passes,
+   never before.
+
+**One decision is still open and it now blocks two things** (see below): where
+the catalogue and orders are stored. Until it is answered, the admin cannot
+persist edits and orders are lost on restart.

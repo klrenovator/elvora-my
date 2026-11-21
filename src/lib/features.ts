@@ -9,7 +9,15 @@
 export const features = {
   /** Phase 2b: cart implemented — variant selection, persistence, cart page. */
   cart: true,
-  /** Phase 2 step 3: payment provider (FPX / cards / DuitNow) integration. */
+  /**
+   * Phase 2d: order records, server-side pricing and the payment-provider
+   * boundary are complete. No provider is connected — awaiting the owner's
+   * merchant account — so this stays false, and checkout records a
+   * `pending-payment` order rather than taking money.
+   *
+   * Flip this to true only in the commit that implements and tests a real
+   * provider against its sandbox.
+   */
   payments: false,
   /** Phase 6: live chat widget. */
   liveChat: false,
