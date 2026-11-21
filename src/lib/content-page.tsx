@@ -5,13 +5,20 @@ import { CategoryCard, categoryRoutes } from "@/components/category-cards";
 import { categories } from "@/content/categories";
 import { getDictionary } from "@/lib/dictionary";
 import { pathFor } from "@/lib/routes";
+import { contact, isConfigured } from "@/lib/site";
 
 /** Renders an editorial page body from typed blocks, in the active language. */
 export function PageBlocks({ page, locale }: { page: ContentPage; locale: Locale }) {
   const blocks = page.blocks[locale];
+
+  // A "channels being finalised" notice is only true while no channel exists.
+  // Showing it next to working WhatsApp and email buttons would contradict the
+  // page, so it disappears the moment either is configured.
+  const channelsLive = isConfigured(contact.whatsapp) || isConfigured(contact.email);
+
   return (
     <div className="prose-leather max-w-[42rem]">
-      {page.pending ? (
+      {page.pending && !channelsLive ? (
         <p className="mb-8 border-l-2 border-[color:var(--color-clay)] bg-[color:var(--color-cream)] px-4 py-3 text-[0.875rem] leading-relaxed text-[color:var(--color-ink-body)]">
           {page.pending[locale]}
         </p>

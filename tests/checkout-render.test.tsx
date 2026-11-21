@@ -60,21 +60,28 @@ function render(
   );
 }
 
-/* Every language renders and states that payment is not live. */
+/*
+ * Every language renders, offers Cash on Delivery, and states the terms in which
+ * it is paid. The old assertion here was that "payment is not connected"; that
+ * copy was replaced when COD became a real method, so these assert the new
+ * facts: the method is offered, the customer is told they pay on delivery, and
+ * nothing claims a card was charged.
+ */
 const cases = [
-  ["en", "Payment is not connected yet", "checking out as a guest"],
-  ["ms", "Pembayaran belum disambungkan", "sebagai tetamu"],
-  ["zh", "付款功能尚未接通", "以访客身分结账"],
+  ["en", "Cash on delivery", "pay the courier in cash when", "checking out as a guest"],
+  ["ms", "Tunai semasa penghantaran", "membayar secara tunai", "sebagai tetamu"],
+  ["zh", "货到付款", "以现金支付给快递员", "以访客身分结账"],
 ] as const;
 
-for (const [locale, payText, guestText] of cases) {
+for (const [locale, methodText, codText, guestText] of cases) {
   const html = render(locale);
-  check(`${locale}: honest payment notice present`, html.includes(payText));
+  check(`${locale}: Cash on Delivery is offered`, html.includes(methodText));
+  check(`${locale}: the customer is told they pay on delivery`, html.includes(codText));
   check(`${locale}: guest checkout stated`, html.includes(guestText));
+  check(`${locale}: the method is a radio choice`, html.includes('name="paymentMethod"') && html.includes('value="cod"'));
   check(`${locale}: 16 states + placeholder rendered`, (html.match(/<option/g) || []).length === 17, String((html.match(/<option/g) || []).length));
   check(`${locale}: subtotal rendered`, html.includes("498"));
-  check(`${locale}: no fake "Place order" button`, !html.includes("Place order"));
-  check(`${locale}: enquiry button label present`, html.length > 2000);
+  check(`${locale}: the button says pay on delivery, not card payment`, !/Pay now|Bayar sekarang|立即付款/i.test(html));
 }
 
 /* Validation messages appear in the right language. */

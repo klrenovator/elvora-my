@@ -10,13 +10,15 @@ export const features = {
   /** Phase 2b: cart implemented — variant selection, persistence, cart page. */
   cart: true,
   /**
-   * Phase 2d: order records, server-side pricing and the payment-provider
-   * boundary are complete. No provider is connected — awaiting the owner's
-   * merchant account — so this stays false, and checkout records a
-   * `pending-payment` order rather than taking money.
+   * Whether an *online* gateway is connected.
    *
-   * Flip this to true only in the commit that implements and tests a real
-   * provider against its sandbox.
+   * Still false, and it stays false until the owner approves a merchant account
+   * and the integration has been tested against the provider's sandbox.
+   *
+   * Note what this flag does **not** mean: the shop takes orders, and they are
+   * paid for — in cash, on delivery. COD is a real payment method (see
+   * `src/lib/payments/methods.ts`), not the absence of one, so this flag is
+   * about gateways only. Read `paymentMethods` for what a customer can choose.
    */
   payments: false,
   /** Phase 6: live chat widget. */

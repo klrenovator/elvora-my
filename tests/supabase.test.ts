@@ -85,6 +85,8 @@ async function main() {
     reference: "ELV-ABC234",
     createdAt: "2026-11-21T08:30:00.000Z",
     status: "pending-payment",
+    paymentMethodId: "cod",
+    paymentStatus: "on-delivery",
     locale: "ms",
     customer: {
       fullName: "Aisyah Rahman",
@@ -122,6 +124,8 @@ async function main() {
     check("total mapped to snake_case", row.total_sen === 49800);
     check("absent shipping stays null, never 0", row.shipping_sen === null);
     check("created_at preserves the original timestamp", row.created_at === order.createdAt);
+    check("the payment method is stored as its own column", row.payment_method_id === "cod");
+    check("the payment status is stored as its own column", row.payment_status === "on-delivery");
 
     const restored = rowToOrder({
       ...row,
@@ -134,6 +138,41 @@ async function main() {
       "order round trip is lossless",
       JSON.stringify(restored) === JSON.stringify(order),
     );
+    check("the payment method survives the round trip", restored.paymentMethodId === "cod");
+    check("the payment status survives the round trip", restored.paymentStatus === "on-delivery");
+  }
+
+  {
+    // An accounting field must fail towards "we have not been paid", never
+    // towards "paid" — a wrong `paid` would hide money that is owed.
+    const damaged = { ...orderToRow(order), payment_status: "something-else" };
+    check(
+      "an unknown payment status never reads as paid",
+      rowToOrder({ ...damaged, created_at: order.createdAt, customer: order.customer, lines: order.lines, payment: null })
+        .paymentStatus === "on-delivery",
+    );
+
+    // Rows from before the columns existed must still load as COD.
+    const legacy = { ...orderToRow(order), payment_method_id: null, payment_status: null };
+    const legacyOrder = rowToOrder({
+      ...legacy,
+      created_at: order.createdAt,
+      customer: order.customer,
+      lines: order.lines,
+      payment: null,
+    });
+    check("a legacy order loads as a COD order", legacyOrder.paymentMethodId === "cod");
+    check("a legacy order is not assumed paid", legacyOrder.paymentStatus === "on-delivery");
+
+    // A paid order must still carry its payment record.
+    const paid = rowToOrder({
+      ...orderToRow({ ...order, status: "paid", paymentStatus: "paid" }),
+      created_at: order.createdAt,
+      customer: order.customer,
+      lines: order.lines,
+      payment: { provider: "cod", providerReference: "COD-1", paidAt: "2026-11-22T00:00:00.000Z", amountSen: 49800 },
+    });
+    check("a paid order maps its payment record", paid.payment?.provider === "cod");
   }
 
   {

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { isOwner } from "@/lib/admin/session";
 import { getOrderRepository, ordersAreDurable } from "@/lib/order-repository";
 import { formatSen } from "@/lib/pricing";
+import { cancelOrder, markOrderPaid } from "@/app/admin/actions";
+import { paymentMethodById } from "@/lib/payments/methods";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +12,13 @@ export const dynamic = "force-dynamic";
  * Order list.
  *
  * An order record nobody can read is not much of a record, so this is where a
- * placed order shows up. It is deliberately read-only: status changes belong to
- * a verified payment callback, not to a button, and there is no provider yet.
+ * placed order shows up.
+ *
+ * Cash on Delivery means the money arrives after dispatch, so the owner has to
+ * be able to say "this one is settled". That is the only status change offered,
+ * and it records the amount from the stored order rather than from the form.
+ * There is still no way to mark an order paid without that deliberate action,
+ * and no online gateway is involved.
  */
 export default async function AdminOrdersPage() {
   if (!(await isOwner())) redirect("/admin/login");
@@ -20,7 +27,9 @@ export default async function AdminOrdersPage() {
   const orders = await repository.recent(100);
   const durable = ordersAreDurable(repository);
 
-  const pending = orders.filter((order) => order.status === "pending-payment");
+  const outstanding = orders.filter((order) => order.status === "pending-payment");
+  const awaitingCash = orders.filter((order) => order.paymentStatus === "on-delivery");
+  const settled = orders.filter((order) => order.paymentStatus === "paid");
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10">
@@ -37,7 +46,8 @@ export default async function AdminOrdersPage() {
         </Link>
       </div>
       <p className="mt-1 text-[0.8125rem] text-[color:var(--color-ink-muted)]">
-        {orders.length} recorded · {pending.length} awaiting payment
+        {orders.length} recorded · {outstanding.length} open · {awaitingCash.length} cash due on
+        delivery · {settled.length} paid
       </p>
 
       {!durable ? (
@@ -55,10 +65,10 @@ export default async function AdminOrdersPage() {
 
       <div className="mt-6 border-l-2 border-[color:var(--color-line-strong)] bg-white px-4 py-3">
         <p className="text-[0.8125rem] leading-relaxed text-[color:var(--color-ink-muted)]">
-          No payment provider is connected, so no order here has been paid. An
-          order can only become <strong className="font-medium">paid</strong>{" "}
-          through a verified provider callback, which is why none of these rows
-          offers a way to mark one paid by hand.
+          Payment is <strong className="font-medium">cash on delivery</strong>. Money reaches you
+          after the parcel does, so mark an order paid only once you actually have the cash —
+          the amount recorded is the order total, not a figure you type. No online gateway is
+          connected and none can be reached from this screen.
         </p>
       </div>
 
@@ -72,7 +82,9 @@ export default async function AdminOrdersPage() {
               <Th>Destination</Th>
               <Th>Items</Th>
               <Th>Total</Th>
-              <Th>Status</Th>
+              <Th>Order</Th>
+              <Th>Payment</Th>
+              <Th>Action</Th>
             </tr>
           </thead>
           <tbody>
@@ -106,15 +118,31 @@ export default async function AdminOrdersPage() {
                   {formatSen(order.totalSen, order.locale)}
                 </td>
                 <td className="px-4 py-3">
-                  <span className="inline-block bg-[color:var(--color-cream)] px-2 py-0.5 text-[0.625rem] tracking-[0.08em] uppercase text-[color:var(--color-stone)]">
-                    {order.status}
-                  </span>
+                  <StatusPill value={order.status} />
+                </td>
+                <td className="px-4 py-3">
+                  <StatusPill value={order.paymentStatus} />
+                  <p className="mt-1 text-[0.6875rem] text-[color:var(--color-mist)]">
+                    {paymentMethodById(order.paymentMethodId ?? "cod")?.label.en ?? "Cash on delivery"}
+                  </p>
+                  {order.payment ? (
+                    <p className="mt-0.5 text-[0.6875rem] text-[color:var(--color-mist)]">
+                      {formatSen(order.payment.amountSen, order.locale)} on {formatDate(order.payment.paidAt)}
+                    </p>
+                  ) : null}
+                </td>
+                <td className="px-4 py-3">
+                  <OrderActions
+                    reference={order.reference}
+                    status={order.status}
+                    totalSen={order.totalSen}
+                  />
                 </td>
               </tr>
             ))}
             {orders.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-[color:var(--color-mist)]">
+                <td colSpan={9} className="px-4 py-10 text-center text-[color:var(--color-mist)]">
                   No orders yet. Orders placed through checkout appear here.
                 </td>
               </tr>
@@ -123,6 +151,77 @@ export default async function AdminOrdersPage() {
         </table>
       </div>
     </main>
+  );
+}
+
+/**
+ * Status pill.
+ *
+ * `paid` and `not-required` are green because nothing is owed; everything else
+ * is neutral. The colour is a prompt to look, not a claim of success.
+ */
+function StatusPill({ value }: { value: string }) {
+  const settled = value === "paid" || value === "not-required";
+  return (
+    <span
+      className={`inline-block px-2 py-0.5 text-[0.625rem] tracking-[0.08em] uppercase ${
+        settled
+          ? "bg-[color:var(--color-cream)] text-[#41593a]"
+          : "bg-[color:var(--color-cream)] text-[color:var(--color-stone)]"
+      }`}
+    >
+      {value}
+    </span>
+  );
+}
+
+/**
+ * The only status changes the owner can make.
+ *
+ * A form posting to a server action, not a link, so the action cannot be
+ * triggered by a crawler or a prefetch. There is no control at all for an order
+ * that is already settled or cancelled, because there is nothing left to do to
+ * it.
+ */
+function OrderActions({
+  reference,
+  status,
+  totalSen,
+}: {
+  reference: string;
+  status: string;
+  totalSen: number;
+}) {
+  if (status === "paid" || status === "cancelled") {
+    return <span className="text-[0.6875rem] text-[color:var(--color-mist)]">—</span>;
+  }
+
+  // No price on the order means there is no amount to record as received.
+  const settleable = totalSen > 0;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <form action={markOrderPaid}>
+        <input type="hidden" name="reference" value={reference} />
+        <button
+          type="submit"
+          disabled={!settleable}
+          title={settleable ? undefined : "This order has no total, so there is no amount to record."}
+          className="w-full border border-[color:var(--color-espresso)] px-3 py-1.5 text-[0.6875rem] tracking-[0.08em] uppercase text-[color:var(--color-espresso)] transition-colors hover:bg-[color:var(--color-cream)] disabled:cursor-not-allowed disabled:border-[color:var(--color-line-strong)] disabled:text-[color:var(--color-mist)]"
+        >
+          Mark paid
+        </button>
+      </form>
+      <form action={cancelOrder}>
+        <input type="hidden" name="reference" value={reference} />
+        <button
+          type="submit"
+          className="w-full px-3 py-1 text-[0.6875rem] tracking-[0.08em] uppercase text-[color:var(--color-mist)] underline underline-offset-2 transition-colors hover:text-[#a8442c]"
+        >
+          Cancel
+        </button>
+      </form>
+    </div>
   );
 }
 

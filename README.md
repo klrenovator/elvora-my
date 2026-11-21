@@ -23,7 +23,7 @@ falling back to English.
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm test            # 773 assertions across 15 suites
+npm test            # 933 assertions across 17 suites
 npm run verify      # typecheck + lint + tests + build, in one command
 npm run build       # production build, all routes pre-rendered
 ```
@@ -103,9 +103,31 @@ Checkout **records a real order**: it validates the address on the server,
 re-prices every line from the catalogue, and stores the result with a reference
 the customer can quote. The confirmation screen shows that reference.
 
-Payment is **not connected**. `features.payments` is `false`, so an order is
-recorded as `pending-payment` and no money is taken. The page says this plainly
-rather than implying a completed purchase.
+**Payment is Cash on Delivery.** The customer pays the courier in cash when the
+order arrives, so nothing is taken at checkout. An order is recorded as
+`status: pending-payment` with `paymentStatus: on-delivery` — the honest reading:
+the order is real, the money has not arrived yet.
+
+| Field | Meaning |
+| --- | --- |
+| `status` | The order's own lifecycle: `pending-payment` → `paid`, or `cancelled` / `expired` |
+| `paymentStatus` | Whether money arrived: `on-delivery`, `unpaid`, `paid`, `not-required` |
+| `paymentMethodId` | How the customer pays. `cod` today |
+
+Two fields rather than one because they answer different questions. "Delivered
+but the customer had no cash" and "cancelled before dispatch" are both an order
+that is not `paid`, but one is money owed to you and the other is nothing. An
+owner reconciling a cash-up needs to tell those apart.
+
+**Settling is deliberate.** An order becomes `paid` only when the owner presses
+**Mark paid** in `/admin/orders`, once the cash is actually in hand. The amount
+recorded is the order's own total, read from the stored order — never a figure
+typed into a form, which is what stops a RM 498 order being settled for RM 1. An
+order with no price cannot be settled, because there is no amount to record and
+writing zero would claim nothing is owed.
+
+A paid order cannot be cancelled. Money changed hands, and erasing that record
+would misstate the takings; a refund is a separate, real event.
 
 **The client's total is never trusted.** The browser sends what it thinks the
 order costs; the server re-prices from the catalogue and *refuses* if the two
@@ -116,20 +138,35 @@ Orders are stored in server memory (`MemoryOrderRepository`) — real, but lost 
 restart, and both the confirmation screen and `/admin/orders` say so. Swapping in
 a database is one file, the same as the catalogue.
 
-### Connecting a payment provider
+### Adding online payment later
 
-`src/lib/payments/provider.ts` defines the boundary. Implement `PaymentProvider`
-against the provider's sandbox, then flip `features.payments` in
-`src/lib/features.ts` **in the same commit that the sandbox test passes** —
-never before. Two rules are already encoded and tested in `paymentGuards`:
+Not started, and it will not start without the owner's explicit approval and a
+merchant account. The structure is ready for it, which is the point of doing the
+work now:
+
+1. Add a method to `paymentMethods` in `src/lib/payments/methods.ts`, with
+   `requiresOnlinePayment: true`. Checkout renders whatever is in that list, so
+   the form does not change.
+2. Add its id to the `orders_payment_method_known` check in a new migration, in
+   the same migration that implements it, so the database and the code cannot
+   disagree.
+3. Implement `PaymentProvider` against the provider's sandbox, then flip
+   `features.payments` in `src/lib/features.ts` **in the same commit that the
+   sandbox test passes** — never before.
+
+`features.payments` refers only to gateways. It is `false` today and the shop is
+still paid — in cash, on delivery.
+
+Two rules are already encoded and tested in `paymentGuards`:
 
 1. A paid amount must match the order total **exactly**. Partial payments,
    overpayments and currency mix-ups are refused and reconciled by hand.
 2. Only a `pending-payment` order may become paid. A duplicate or conflicting
    callback must not double-charge or revive a cancelled order.
 
-There is no code path that marks an order paid other than a verified provider
-callback, and no manual override in the admin.
+Even after a gateway exists, an order may only become paid through a verified
+callback or the owner's explicit cash-received action. There is no path that
+infers payment from a status field.
 
 ## Product pages
 
@@ -189,6 +226,34 @@ These are enforced in structure, not just documented:
   an online store serving the area, never a branch.
 - **No delivery guarantees.** Shipping copy explains how charges are calculated
   at checkout and explicitly declines to promise transit times.
+
+## Contact channels
+
+The shop's two inquiry routes are **WhatsApp** and **email**, and they are shown
+wherever a customer might hesitate:
+
+| Where | What |
+| --- | --- |
+| Product pages | Buttons under the buy controls, with the product name prefilled into the WhatsApp message |
+| Contact page | Both channels, above the prose |
+| Category pages | The main call to action links straight to WhatsApp |
+| Header | A WhatsApp button on desktop; both channels in the mobile drawer |
+| Footer | Both, whenever they are configured |
+
+Both values come from the environment, so publishing them is a config change
+rather than a code change:
+
+```bash
+NEXT_PUBLIC_WHATSAPP_NUMBER=012-345 6789   # or +60 12-345 6789
+NEXT_PUBLIC_CONTACT_EMAIL=hello@elvora.my
+```
+
+Unset, the site says the details are being finalised and renders **no** link —
+never a placeholder number or a button that goes nowhere. A local number and an
+international one both normalise to the same `wa.me` link.
+
+> On Vercel, `NEXT_PUBLIC_*` values are baked in at build time. Setting them in
+> the dashboard requires a redeploy before they appear.
 
 ## Replacing the temporary images
 
@@ -335,6 +400,8 @@ variable.
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | No | Canonical origin used in metadata, sitemap and hreflang. Defaults to `https://elvora.my`. |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | For WhatsApp | Inquiry number. Local or international format. Unset means no WhatsApp button at all. |
+| `NEXT_PUBLIC_CONTACT_EMAIL` | For email | Inquiry address, shown as text and as a `mailto:` link. |
 | `ADMIN_PASSWORD_HASH` | For admin | Password hash from `npm run admin:hash`. Without it the admin refuses all logins. |
 | `ADMIN_SESSION_SECRET` | For admin | Signs session cookies. Must be 32+ characters. |
 | `SUPABASE_DB_URL` | Optional | Supabase **pooler** connection string (port 6543). Enables persistent catalogue and orders. Without it the site runs on the compiled catalogue. |

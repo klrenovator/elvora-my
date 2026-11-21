@@ -15,20 +15,52 @@ import type { Locale } from "@/i18n/config";
  *    the customer saw — which is both the honest reading and the one an
  *    accountant expects.
  *
- * Order status reflects reality: until a payment provider is connected, an
- * order is `pending-payment` and can never become `paid`. Nothing in this file
- * has a path to marking an order paid without a verified provider callback.
+ * Two independent things are tracked, because conflating them is how shops end
+ * up claiming money they do not have:
+ *
+ * - **`status`** is the order's own lifecycle — outstanding, settled, abandoned.
+ * - **`paymentStatus`** is whether money has actually been received.
+ *
+ * Cash on Delivery is the only method, and cash arrives *after* dispatch, so a
+ * freshly placed COD order is `status: "pending-payment"` with
+ * `paymentStatus: "on-delivery"`. It becomes `unpaid` only if delivery failed,
+ * and `paid` only when the owner records the cash as received — which is a
+ * deliberate human action, never an inference.
  */
 
+/**
+ * Order lifecycle.
+ *
+ * `pending-payment` is the only status a new order can have. `paid` requires a
+ * recorded payment (cash received on delivery, or a verified gateway callback
+ * later); the database refuses a `paid` row without one.
+ */
 export type OrderStatus =
-  /** Recorded, awaiting payment. The only status reachable today. */
+  /** Recorded, awaiting settlement. Where every order starts. */
   | "pending-payment"
-  /** Payment confirmed by a provider callback. Unreachable until Phase 2d. */
+  /** Settled. Requires a `payment` record; the database enforces this. */
   | "paid"
   /** Abandoned without payment. */
   | "expired"
   /** Cancelled at the customer's request. */
   | "cancelled";
+
+/**
+ * Whether money has been received.
+ *
+ * Deliberately separate from `OrderStatus`: "the parcel is late" and "we have
+ * not been paid for it" are different problems, and an owner reconciling a
+ * cash-up needs the second one to be exact.
+ */
+export type PaymentStatus =
+  /** Cash is due to be collected on delivery. The normal state for a COD order. */
+  | "on-delivery"
+  /** Delivery happened but the cash was not collected. Owed by the customer. */
+  | "unpaid"
+  /** Money received and recorded. */
+  | "paid"
+  /** Nothing is owed: cancelled before dispatch, or refunded in full by hand. */
+  | "not-required";
 
 export interface OrderLine {
   productId: string;
@@ -62,6 +94,17 @@ export interface Order {
   reference: string;
   createdAt: string;
   status: OrderStatus;
+  /**
+   * How the customer is paying, e.g. "cod".
+   *
+   * Stored on the order rather than assumed, because the moment an online
+   * method is added the payment status of an old COD order must still read
+   * correctly. Optional only so orders written before this field existed load
+   * without a migration; `paymentMethodOf` supplies the historical default.
+   */
+  paymentMethodId?: string;
+  /** Whether money has arrived. See `PaymentStatus`. */
+  paymentStatus: PaymentStatus;
   locale: Locale;
   customer: OrderCustomer;
   lines: OrderLine[];
@@ -73,8 +116,22 @@ export interface Order {
    */
   shippingSen: number | null;
   totalSen: number;
-  /** Set only by a verified provider callback. Always null today. */
+  /**
+   * Proof of settlement. Null while `paymentStatus` is `on-delivery` or
+   * `unpaid`; required by the database once the order is `paid`.
+   */
   payment: OrderPayment | null;
+}
+
+/**
+ * The payment method an order used.
+ *
+ * Orders written before `paymentMethodId` existed were, without exception, COD
+ * orders — it was the only method — so that is the honest reading rather than
+ * leaving the field blank or inventing a value.
+ */
+export function paymentMethodOf(order: Pick<Order, "paymentMethodId">): string {
+  return order.paymentMethodId ?? "cod";
 }
 
 export interface OrderPayment {

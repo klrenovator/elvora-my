@@ -74,8 +74,8 @@ check("form renders", idle.includes("<form"));
 check("no error banner when there is no error", !idle.includes('role="alert"'));
 check("submit button is enabled when idle", !/disabled=""/.test(idle));
 check(
-  "button invites an enquiry while payments are off",
-  idle.includes("Send this order as an enquiry"),
+  "the button offers to place a cash-on-delivery order",
+  idle.includes("Place order — pay on delivery"),
 );
 check("no double-submit spinner when idle", !idle.includes("Recording order"));
 
@@ -107,14 +107,14 @@ const msError = render({
   serverError: "Jumlah pesanan telah berubah sejak halaman ini dimuatkan.",
 });
 check("Malay error text is rendered", msError.includes("Jumlah pesanan telah berubah"));
-check("Malay submit label is Malay", msError.includes("Hantar pesanan ini sebagai pertanyaan"));
+check("Malay submit label is Malay", msError.includes("Buat pesanan — bayar semasa penghantaran"));
 
 const zhError = render({
   locale: "zh",
   serverError: "订单总额已在此页面载入后改变。",
 });
 check("Chinese error text is rendered", zhError.includes("订单总额已在此页面载入后改变"));
-check("Chinese submit label is Chinese", zhError.includes("以此订单内容发送查询"));
+check("Chinese submit label is Chinese", zhError.includes("提交订单——货到付款"));
 
 const msPending = render({ locale: "ms", pending: true });
 check("Malay pending label", msPending.includes("Merekod pesanan"));
@@ -141,7 +141,17 @@ check("Chinese pending label", zhPending.includes("正在记录订单"));
 
 /* ------------------------- Honesty about payment ------------------------- */
 
-check("checkout still states payment is not connected", idle.includes("payments are not connected") || render({}).includes("Payment is not connected"));
+// The old honesty assertion was that payment was not connected. COD makes that
+// untrue: the shop is paid, on delivery. The assertion now is that checkout
+// states the arrangement plainly and never claims money was taken online.
+check(
+  "checkout states that payment is due on delivery",
+  idle.includes("You pay the courier in cash when your order arrives"),
+);
+check(
+  "checkout does not claim a payment was taken",
+  !/payment received|paid successfully|charg(ed|ing) your card/i.test(idle),
+);
 
 
 /* ------------------------- Form/action contract --------------------------- */

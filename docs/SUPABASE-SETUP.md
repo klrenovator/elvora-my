@@ -52,6 +52,22 @@ That file creates the `products` and `orders` tables, the constraints that stop
 an order being marked paid without a payment record, and enables Row Level
 Security with **no public access at all**.
 
+### 2a. Add Cash on Delivery tracking
+
+1. **SQL Editor** → **New query**.
+2. Open `supabase/migrations/0003_cod.sql`, copy the whole file, paste it in, and
+   press **Run**.
+
+This adds two columns to `orders` — `payment_method_id` and `payment_status` —
+plus constraints that make a contradictory payment state impossible in the
+database itself. Existing orders get the right values automatically: every order
+placed before this migration was a Cash on Delivery order, and none had been
+paid.
+
+The important constraint is `orders_paid_status_agrees`, which refuses a row
+whose `status` says `paid` while its `payment_status` says the cash is still on
+its way. A bug cannot make the two disagree.
+
 ### 2b. Create the photo bucket
 
 Uploaded product photos live in Supabase Storage, which has its own permissions,
@@ -144,6 +160,8 @@ This is the step worth not skipping. It checks that:
 - the **anon key genuinely cannot read** products or orders,
 - the `product-images` bucket exists, is public-read, and enforces the 8 MB limit,
 - **no** policy allows public writes to storage,
+- every order records a payment method and a payment status,
+- no order claims to be paid while its payment status says otherwise,
 - every product in the database passes the application's own validation.
 
 All lines should say PASS. If any line says the public key can read a table,

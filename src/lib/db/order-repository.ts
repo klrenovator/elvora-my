@@ -1,4 +1,11 @@
-import type { Order, OrderCustomer, OrderLine, OrderPayment, OrderStatus } from "@/lib/orders";
+import type {
+  Order,
+  OrderCustomer,
+  OrderLine,
+  OrderPayment,
+  OrderStatus,
+  PaymentStatus,
+} from "@/lib/orders";
 import type { Locale } from "@/i18n/config";
 import { getDb } from "@/lib/db/client";
 import { OrderStorageError, type OrderRepository } from "@/lib/order-repository";
@@ -29,8 +36,24 @@ export interface OrderRow {
   subtotal_sen: number;
   shipping_sen: number | null;
   total_sen: number;
+  payment_method_id: string | null;
+  payment_status: string | null;
   payment: unknown;
   created_at: string | Date;
+}
+
+const PAYMENT_STATUSES: PaymentStatus[] = ["on-delivery", "unpaid", "paid", "not-required"];
+
+/**
+ * An unrecognised payment status must never read as `paid`.
+ *
+ * Falling back to `on-delivery` keeps an old or damaged row in the "we have not
+ * been paid" bucket, which is the safe direction for an accounting field.
+ */
+function toPaymentStatus(value: string | null): PaymentStatus {
+  return PAYMENT_STATUSES.includes(value as PaymentStatus)
+    ? (value as PaymentStatus)
+    : "on-delivery";
 }
 
 const ORDER_STATUSES: OrderStatus[] = ["pending-payment", "paid", "expired", "cancelled"];
@@ -55,6 +78,9 @@ export function rowToOrder(row: OrderRow): Order {
     reference: row.reference,
     createdAt: toIso(row.created_at),
     status: toStatus(row.status),
+    // Rows written before the column existed were all COD orders.
+    paymentMethodId: row.payment_method_id ?? "cod",
+    paymentStatus: toPaymentStatus(row.payment_status),
     locale: toLocale(row.locale),
     customer: row.customer as OrderCustomer,
     lines: row.lines as OrderLine[],
@@ -75,6 +101,8 @@ export function orderToRow(order: Order) {
   return {
     reference: order.reference,
     status: order.status,
+    payment_method_id: order.paymentMethodId ?? "cod",
+    payment_status: order.paymentStatus,
     locale: order.locale,
     customer: order.customer,
     lines: order.lines,
@@ -100,6 +128,8 @@ const ORDER_COLUMNS = [
   "subtotal_sen",
   "shipping_sen",
   "total_sen",
+  "payment_method_id",
+  "payment_status",
   "payment",
   "created_at",
 ];
@@ -114,7 +144,7 @@ export class PostgresOrderRepository implements OrderRepository {
       const inserted = await sql<OrderRow[]>`
         insert into public.orders ${sql(recordOf(orderToRow(order)), ...ORDER_COLUMNS)}
         on conflict (reference) do nothing
-        returning reference, status, locale, customer, lines, subtotal_sen, shipping_sen, total_sen, payment, created_at
+        returning reference, status, locale, customer, lines, subtotal_sen, shipping_sen, total_sen, payment_method_id, payment_status, payment, created_at
       `;
       if (inserted.length === 0) {
         // Deliberately an error: overwriting would destroy a real order.
@@ -129,7 +159,7 @@ export class PostgresOrderRepository implements OrderRepository {
   async byReference(reference: string): Promise<Order | undefined> {
     const sql = getDb();
     const rows = await sql<OrderRow[]>`
-      select reference, status, locale, customer, lines, subtotal_sen, shipping_sen, total_sen, payment, created_at
+      select reference, status, locale, customer, lines, subtotal_sen, shipping_sen, total_sen, payment_method_id, payment_status, payment, created_at
       from public.orders
       where reference = ${reference}
       limit 1
@@ -144,7 +174,7 @@ export class PostgresOrderRepository implements OrderRepository {
       const updated = await sql<OrderRow[]>`
         update public.orders set ${sql(recordOf(row), ...ORDER_COLUMNS)}
         where reference = ${reference}
-        returning reference, status, locale, customer, lines, subtotal_sen, shipping_sen, total_sen, payment, created_at
+        returning reference, status, locale, customer, lines, subtotal_sen, shipping_sen, total_sen, payment_method_id, payment_status, payment, created_at
       `;
       if (updated.length === 0) {
         throw new OrderStorageError(`Order ${reference} does not exist.`);
@@ -160,7 +190,7 @@ export class PostgresOrderRepository implements OrderRepository {
     // Clamp the limit so a caller cannot ask for the whole table.
     const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 200);
     const rows = await sql<OrderRow[]>`
-      select reference, status, locale, customer, lines, subtotal_sen, shipping_sen, total_sen, payment, created_at
+      select reference, status, locale, customer, lines, subtotal_sen, shipping_sen, total_sen, payment_method_id, payment_status, payment, created_at
       from public.orders
       order by created_at desc
       limit ${safeLimit}

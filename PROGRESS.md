@@ -3,7 +3,7 @@
 This file is the single source of truth for what has been built, what has been
 verified, and what comes next. Update it at the end of every working session.
 
-**Last updated:** Phase 3a completed (Supabase persistence with RLS).
+**Last updated:** Phase 2f completed (Cash on Delivery and contact channels).
 
 ---
 
@@ -17,12 +17,13 @@ verified, and what comes next. Update it at the end of every working session.
 | 2b | Cart, checkout handoff, Malaysian address validation | ✅ Complete |
 | 2c | Admin product management screen (add/edit/publish/pricing) | ✅ Complete (persistence decision pending) |
 | 2d | Order records, server-side re-pricing, payment-provider boundary | ✅ Complete |
-| 2e | Payment provider implementation (FPX / cards / DuitNow) | ⬜ Blocked on owner's merchant account |
+| 2e | Online payment provider (FPX / cards / DuitNow) | ⬜ Deferred by the owner — COD for now, approval required |
 | 3a | Supabase persistence: catalogue edits and orders stored permanently, RLS | ✅ Complete |
 | 3 | Multilingual completion for commerce surfaces (cart, checkout, forms, admin) | ⬜ Blocked by Phase 2 |
 | 4 | Nationwide location SEO: Malaysia geo database, location pages, internal linking | ⬜ Not started |
 | 5 | Content marketing, AEO/GEO/LLMO assets, articles | ⬜ Deferred until Phase 2–4 |
-| 6 | Conversion and leads: WhatsApp, live chat, enquiry flows, analytics | ⬜ Partially — contact route exists, channels pending |
+| 2f | Cash on Delivery, payment/order status tracking, WhatsApp + email contact | ✅ Complete |
+| 6 | Conversion and leads: WhatsApp, live chat, enquiry flows, analytics | 🔶 WhatsApp and email live; live chat and analytics not started |
 | 7 | Full QA, performance, launch | ⬜ Not started |
 
 ---
@@ -534,15 +535,114 @@ policies.
 
 ---
 
+## Phase 2f — Cash on Delivery and contact channels (completed)
+
+The shop takes orders and is paid in cash at the door. No gateway is involved,
+and none will be until the owner approves one.
+
+### Payment is a method, not an absence
+
+`src/lib/payments/methods.ts` is the registry. Cash on Delivery is an entry with
+a label in three languages, a description, a settlement kind (`on-delivery`) and
+`requiresOnlinePayment: false`.
+
+This mattered more than it looked. The previous build said "payment is not
+connected" everywhere, which described a missing gateway rather than a working
+arrangement — and would have left the shop apologising for a payment method it
+actually has. The copy now states the arrangement: you pay the courier when the
+parcel arrives.
+
+Adding an online method later is: append to the registry, allow the id in the
+migration's check constraint, implement `PaymentProvider`, flip
+`features.payments`. Checkout renders whatever the registry offers, so the form
+does not change.
+
+### Two status fields, deliberately
+
+| Field | Values | Question it answers |
+| --- | --- | --- |
+| `status` | `pending-payment`, `paid`, `expired`, `cancelled` | Where is this order in its life? |
+| `paymentStatus` | `on-delivery`, `unpaid`, `paid`, `not-required` | Have we been paid? |
+| `paymentMethodId` | `cod` | How is the customer paying? |
+
+One field would conflate "delivered but the customer had no cash" (money owed)
+with "cancelled before dispatch" (nothing owed). Both are "not paid", with
+opposite accounting consequences.
+
+A newly placed COD order is `pending-payment` / `on-delivery`. **Not** `paid`:
+nothing has arrived.
+
+### Settling is a deliberate act (`src/lib/order-settlement.ts`)
+
+Separated from the server action so the rules can be tested without a request
+and audited in one function.
+
+| Rule | Why |
+| --- | --- |
+| Only `pending-payment` can be settled | A duplicate cannot double-count the money or revive a cancelled order |
+| The amount is the order's own total | A form-supplied amount would let a RM 498 order be settled in full for RM 1 |
+| An order with no total cannot be settled | Writing 0 claims the customer owes nothing — worse than refusing |
+| A paid order cannot be cancelled | Money changed hands; erasing it would misstate the takings |
+| Cancelling sets `not-required` | The order is over and nothing is owed |
+
+The database re-checks all of it: `orders_paid_status_agrees` refuses a row
+whose `status` says paid while `payment_status` disagrees.
+
+### Contact channels
+
+WhatsApp and email, read from `NEXT_PUBLIC_WHATSAPP_NUMBER` and
+`NEXT_PUBLIC_CONTACT_EMAIL`, so publishing them is config rather than code.
+
+| Placement | Detail |
+| --- | --- |
+| Product pages | Under the buy controls, product name prefilled into the message |
+| Contact page | Above the prose, as the page's main action |
+| Category pages | Main CTA links straight to WhatsApp |
+| Header | WhatsApp button on desktop; both in the mobile drawer |
+| Footer | Both, when configured |
+
+Unconfigured, no link is rendered at all — no placeholder number, no dead
+button. The contact page's old "channels being finalised" notice is now gated on
+whether a channel exists, so it cannot contradict working buttons.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| A COD order is recorded with method and `on-delivery` | ✅ |
+| An unknown or missing method falls back to COD, never stored | ✅ |
+| Settling records the order total, not the form's figure | ✅ |
+| Settling twice is refused and changes nothing | ✅ |
+| An unpriced order cannot be settled | ✅ |
+| A cancelled order cannot be marked paid | ✅ |
+| A paid order cannot be cancelled | ✅ |
+| No provider is live; sessions and callbacks refused | ✅ |
+| No gateway SDK in the code, the dependencies or the env | ✅ asserted from source |
+| Contact buttons render when configured, nothing when not | ✅ |
+| Contact page notice disappears once a channel is set | ✅ |
+| `tests/cod.test.ts` / `tests/contact-channels.test.tsx` | ✅ 93 + 53 assertions |
+| `npm test` | ✅ 17 suites, 933 assertions, 0 failed |
+| `npm run verify` | ✅ clean, 87 pages |
+| Live build with channels configured | ✅ buttons on product, contact, category, header |
+
+**Not verifiable here:** no Supabase project, so migration `0003_cod.sql` was
+not run against a live server. `npm run db:verify` now checks the payment
+columns, the values actually stored, and the presence of both payment
+constraints.
+
+---
+
 ## Known gaps and deliberate deferrals
 
 1. **Persistence needs the owner to create the Supabase project.** The code,
    schema, RLS policies and seed/verify scripts are complete and tested, but no
    project exists yet, so the site still runs on the compiled catalogue. Steps
    are in `docs/SUPABASE-SETUP.md`.
-2. **No payments.** Phase 2e. Orders are recorded, re-priced and viewable, but
-   no provider is connected (FPX/cards/DuitNow need an owner merchant account).
-   Every order is `pending-payment` and nothing claims otherwise.
+2. **No online payment.** Cash on Delivery only, by the owner's decision. Orders
+   are recorded with a payment method and a payment status, and the owner settles
+   them as cash arrives. Phase 2e (FPX/cards/DuitNow) stays deferred until the
+   owner approves a merchant account — the structure is ready, the integration is
+   deliberately not started.
 3. **Orders are durable only once Supabase is connected.** Without a database
    they live in server memory and are lost on restart, which the confirmation
    screen and admin both state. With `SUPABASE_DB_URL` set they persist.
@@ -554,9 +654,10 @@ policies.
 5. **The login rate limit is per instance and in memory.** It resets on
    redeploy and is not shared between serverless instances. Adequate for a
    single owner; documented rather than overbuilt.
-6. **WhatsApp, phone and email are unset** in `src/lib/site.ts`. The UI detects
-   this and renders a "being finalised" notice instead of a dead link. Nothing
-   invented.
+6. **WhatsApp and email need configuring.** Both are wired end to end and appear
+   the moment `NEXT_PUBLIC_WHATSAPP_NUMBER` and `NEXT_PUBLIC_CONTACT_EMAIL` are
+   set; until then the UI renders no link rather than a placeholder. Phone,
+   Instagram, Facebook and TikTok remain unset.
 7. **Location pages not built.** The geo database and page architecture are
    Phase 4; building them before products exist would produce thin pages.
 8. **OG image** currently reuses the hero photograph; a dedicated 1200×630

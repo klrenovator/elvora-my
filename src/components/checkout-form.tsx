@@ -16,6 +16,13 @@ import {
   type AddressInput,
 } from "@/lib/address";
 import { features } from "@/lib/features";
+import { shopWhatsAppLink } from "@/lib/site";
+import {
+  availablePaymentMethods,
+  defaultPaymentMethod,
+  type PaymentMethod,
+  type PaymentMethodId,
+} from "@/lib/payments/methods";
 import { useCart } from "@/components/cart-provider";
 import type { ReconciledLine } from "@/lib/cart-store";
 import { placeOrder, type CheckoutState } from "@/app/[locale]/checkout/actions";
@@ -29,9 +36,10 @@ import { placeOrder, type CheckoutState } from "@/app/[locale]/checkout/actions"
  * authority — if they disagree the order is refused and the customer is sent
  * back to the cart.
  *
- * Payment is still not connected (see `features.payments`), so a recorded order
- * is `pending-payment`: a real, stored record of intent with a reference the
- * customer can quote. No payment is taken and the confirmation says so.
+ * Payment is Cash on Delivery, read from the method registry rather than
+ * hard-coded, so an online method can be added later without rewriting this
+ * form. A placed order is `pending-payment` with `paymentStatus: "on-delivery"`:
+ * nothing has been charged, and the confirmation says exactly that.
  */
 export function CheckoutForm({ locale }: { locale: Locale }) {
   const dict = getDictionary(locale);
@@ -57,6 +65,13 @@ export function CheckoutForm({ locale }: { locale: Locale }) {
   const [serverError, setServerError] = useState<string | undefined>();
   const [reference, setReference] = useState<string | undefined>();
   const [durable, setDurable] = useState(false);
+
+  // The chosen method lives here so it reaches both the form and the submit
+  // payload. Defaulted from the registry, never hard-coded to `cod`.
+  const availableMethods = availablePaymentMethods();
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId>(
+    (availableMethods[0]?.id ?? defaultPaymentMethod.id) as PaymentMethodId,
+  );
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -85,6 +100,7 @@ export function CheckoutForm({ locale }: { locale: Locale }) {
         .join("\n"),
     );
     formData.set("subtotalSen", String(reconciled.subtotalSen));
+    formData.set("paymentMethod", paymentMethod);
 
     startTransition(async () => {
       const result: CheckoutState = await placeOrder({}, formData);
@@ -143,6 +159,18 @@ export function CheckoutForm({ locale }: { locale: Locale }) {
 
   const summaryText = buildSummary(address, locale, reconciled.lines, reconciled.subtotalSen);
 
+  // A WhatsApp link carrying the reference, when a number is configured.
+  // Null otherwise, so no dead button appears.
+  const confirmationHref = reference
+    ? shopWhatsAppLink(
+        locale === "ms"
+          ? `Salam, saya ingin mengesahkan pesanan ${reference}.`
+          : locale === "zh"
+            ? `你好，我想确认订单 ${reference}。`
+            : `Hello, I would like to confirm order ${reference}.`,
+      )
+    : null;
+
   if (submitted) {
     return (
       <div className="max-w-[46rem]">
@@ -162,6 +190,26 @@ export function CheckoutForm({ locale }: { locale: Locale }) {
           <p className="mt-3 text-[0.8125rem] leading-relaxed text-[color:var(--color-cognac-deep)]">
             {dict.checkout.paymentPending}
           </p>
+
+          {/* The confirmation step is the whole point of COD: the customer sees
+              the total and delivery cost before paying anything. Prefilled with
+              the reference so the shop can find the order immediately. */}
+          {confirmationHref ? (
+            <div className="mt-4 border-t border-[color:var(--color-line)] pt-3">
+              <a
+                href={confirmationHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-11 items-center justify-center bg-[color:var(--color-espresso)] px-6 text-[0.75rem] tracking-[0.16em] uppercase text-[color:var(--color-ivory)]"
+              >
+                {dict.checkout.successWhatsApp}
+              </a>
+              <p className="mt-2 text-[0.75rem] leading-relaxed text-[color:var(--color-mist)]">
+                {dict.checkout.successWhatsAppHint}
+              </p>
+            </div>
+          ) : null}
+
           {!durable ? (
             <p className="mt-2 text-[0.75rem] leading-relaxed text-[color:var(--color-mist)]">
               {dict.checkout.storageNotDurable}
@@ -216,6 +264,9 @@ export function CheckoutForm({ locale }: { locale: Locale }) {
       subtotalSen={reconciled.subtotalSen}
       serverError={serverError}
       pending={pending}
+      methods={availableMethods}
+      paymentMethod={paymentMethod}
+      onPaymentMethodChange={setPaymentMethod}
     />
   );
 }
@@ -236,6 +287,9 @@ export function CheckoutFields({
   subtotalSen,
   serverError,
   pending,
+  methods = availablePaymentMethods(),
+  paymentMethod,
+  onPaymentMethodChange,
 }: {
   locale: Locale;
   address: AddressInput;
@@ -248,8 +302,28 @@ export function CheckoutFields({
   serverError?: string;
   /** True while the server action is in flight. */
   pending?: boolean;
+  /**
+   * Payment methods to offer. Defaulted from the registry so this presentational
+   * component stays renderable in a test without cart context.
+   */
+  methods?: PaymentMethod[];
+  paymentMethod?: PaymentMethodId;
+  onPaymentMethodChange?: (method: PaymentMethodId) => void;
 }) {
   const dict = getDictionary(locale);
+
+  // Selected method: controlled when the container passes state, otherwise a
+  // local copy. Only one method exists today, so this simply reflects it.
+  const [localMethod, setLocalMethod] = useState<PaymentMethodId>(
+    (methods[0]?.id ?? defaultPaymentMethod.id) as PaymentMethodId,
+  );
+  const chosenMethod = paymentMethod ?? localMethod;
+  const chooseMethod = onPaymentMethodChange ?? setLocalMethod;
+
+  // Rendered only when a number is configured. Null means no link at all,
+  // rather than a button pointing at a placeholder.
+  const whatsappHref = shopWhatsAppLink();
+  const onlineLater = features.payments === false;
 
   return (
     <form onSubmit={onSubmit} noValidate className="grid gap-12 lg:grid-cols-12 lg:gap-16">
@@ -408,18 +482,72 @@ export function CheckoutFields({
           </p>
         ) : null}
 
-        {/* Payment — stated honestly as not connected */}
+        {/* Payment — Cash on Delivery is the method actually offered. */}
         <h2 className="font-display mt-10 text-[1.375rem] leading-tight text-[color:var(--color-ink-strong)]">
           {dict.checkout.paymentTitle}
         </h2>
-        <div className="mt-4 border border-dashed border-[color:var(--color-line-strong)] bg-white p-4">
-          <p className="text-[0.875rem] font-medium text-[color:var(--color-ink-strong)]">
-            {dict.checkout.paymentPending}
-          </p>
-          <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-[color:var(--color-ink-muted)]">
-            {dict.checkout.paymentPendingBody}
-          </p>
-        </div>
+
+        <fieldset className="mt-4">
+          <legend className="text-[0.8125rem] font-medium text-[color:var(--color-ink-strong)]">
+            {dict.checkout.paymentMethodLabel}
+          </legend>
+
+          <div className="mt-3 space-y-2">
+            {methods.map((method) => (
+              <label
+                key={method.id}
+                className={`flex cursor-pointer items-start gap-3 border p-4 ${
+                  chosenMethod === method.id
+                    ? "border-[color:var(--color-espresso)] bg-[color:var(--color-cream)]/50"
+                    : "border-[color:var(--color-line-strong)] bg-white"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value={method.id}
+                  checked={chosenMethod === method.id}
+                  onChange={() => chooseMethod(method.id)}
+                  className="mt-0.5 shrink-0"
+                />
+                <span>
+                  <span className="block text-[0.9375rem] font-medium text-[color:var(--color-ink-strong)]">
+                    {method.label[locale]}
+                  </span>
+                  <span className="mt-1 block text-[0.8125rem] leading-relaxed text-[color:var(--color-ink-muted)]">
+                    {method.description[locale]}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+
+          {onlineLater ? (
+            <p className="mt-3 text-[0.75rem] leading-relaxed text-[color:var(--color-mist)]">
+              {dict.checkout.paymentOnlineSoon}
+            </p>
+          ) : null}
+
+          {/* Confirmation happens on WhatsApp before dispatch, which is the
+              promise that makes COD fair to both sides: the customer has seen
+              the total and the delivery cost before paying. */}
+          <div className="mt-4 border-l-2 border-[color:var(--color-cognac)] bg-[color:var(--color-cream)]/60 px-4 py-3">
+            <p className="text-[0.8125rem] leading-relaxed text-[color:var(--color-ink-body)]">
+              {dict.checkout.paymentConfirmNote}
+            </p>
+            {whatsappHref ? (
+              <a
+                href={whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-[color:var(--color-cognac-deep)] underline underline-offset-4"
+              >
+                {dict.checkout.successWhatsApp}
+                <span aria-hidden="true">↗</span>
+              </a>
+            ) : null}
+          </div>
+        </fieldset>
       </div>
 
       {/* Summary */}
@@ -461,22 +589,16 @@ export function CheckoutFields({
             {dict.cart.shippingNote}
           </p>
 
-          {features.payments ? null : (
-            <p className="mt-4 text-[0.75rem] leading-relaxed text-[color:var(--color-cognac-deep)]">
-              {dict.checkout.paymentPending}
-            </p>
-          )}
+          <p className="mt-4 text-[0.75rem] leading-relaxed text-[color:var(--color-cognac-deep)]">
+            {dict.checkout.paymentCODNote}
+          </p>
 
           <button
             type="submit"
             disabled={pending}
             className="mt-5 flex h-12 w-full items-center justify-center bg-[color:var(--color-espresso)] px-6 text-[0.75rem] font-medium tracking-[0.16em] uppercase text-[color:var(--color-ivory)] transition-colors hover:bg-[color:var(--color-cognac-deep)] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {pending
-              ? dict.checkout.placingOrder
-              : features.payments
-                ? dict.checkout.placeOrder
-                : dict.checkout.orderEnquiry}
+            {pending ? dict.checkout.placingOrder : dict.checkout.orderEnquiry}
           </button>
 
           <p className="mt-4 text-[0.6875rem] leading-relaxed text-[color:var(--color-mist)]">

@@ -32,6 +32,8 @@ import {
   type AllowedImageType,
 } from "@/lib/images/rules";
 import { ImageStorageError, getImageStorage, publicImageBase } from "@/lib/images/storage";
+import { getOrderRepository } from "@/lib/order-repository";
+import { cancelOrderRecord, settleOrder } from "@/lib/order-settlement";
 
 /**
  * Admin server actions.
@@ -477,4 +479,46 @@ function formValuesFrom(formData: FormData): ProductFormValues {
     seoDescriptionMs: text("seoDescriptionMs"),
     seoDescriptionZh: text("seoDescriptionZh"),
   };
+}
+
+/* --------------------------- Order settlement ---------------------------- */
+
+/**
+ * Record that a Cash on Delivery order was paid.
+ *
+ * A thin authorisation wrapper: the accounting rules live in
+ * `settleOrder`, so they can be tested without a request and audited in one
+ * place. The only thing this adds is the owner check.
+ *
+ * Cash arrives *after* dispatch, so this is the owner stating that the money is
+ * actually in hand — never an inference from a status field, and never a
+ * gateway callback, because there is no gateway.
+ */
+export async function markOrderPaid(formData: FormData): Promise<void> {
+  try {
+    await requireOwner();
+  } catch {
+    redirect("/admin/login");
+  }
+
+  const reference = String(formData.get("reference") ?? "").trim();
+  if (!reference) return;
+
+  await settleOrder(getOrderRepository(), reference);
+  revalidatePath("/admin/orders");
+}
+
+/** Cancel an outstanding order and record that nothing is owed. */
+export async function cancelOrder(formData: FormData): Promise<void> {
+  try {
+    await requireOwner();
+  } catch {
+    redirect("/admin/login");
+  }
+
+  const reference = String(formData.get("reference") ?? "").trim();
+  if (!reference) return;
+
+  await cancelOrderRecord(getOrderRepository(), reference);
+  revalidatePath("/admin/orders");
 }

@@ -14,6 +14,7 @@ import {
 import { assertCatalogueValid } from "@/lib/validate-catalogue";
 import { Breadcrumbs, categoryRoutes } from "@/components/category-cards";
 import { FaqAccordion } from "@/components/faq-accordion";
+import { ContactChannels } from "@/components/contact-channels";
 import { ProductPurchase } from "@/components/product-purchase";
 import { ProductCard } from "@/components/product-card";
 import { Container, Rule } from "@/components/ui";
@@ -211,6 +212,17 @@ export default async function ProductPage({
               </div>
 
               <ProductPurchase product={product} locale={locale} price={price} />
+
+              {/* WhatsApp and email are the shop's inquiry channels, placed
+                  directly under the buy controls where a hesitant customer
+                  actually looks. The product name prefills the message. */}
+              <div className="mt-6">
+                <ContactChannels
+                  locale={locale}
+                  productName={product.name[locale]}
+                  variant="inline"
+                />
+              </div>
             </div>
           </div>
         </Container>

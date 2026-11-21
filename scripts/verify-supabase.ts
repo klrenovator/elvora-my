@@ -234,6 +234,62 @@ async function main() {
   `;
   console.log(`        ${orderCount[0]?.count ?? 0} orders recorded`);
 
+  /* --------------------------- Payment tracking -------------------------- */
+
+  console.log("\nPayment tracking");
+
+  const paymentColumns = await sql<{ column_name: string }[]>`
+    select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders'
+      and column_name in ('payment_method_id', 'payment_status')
+  `;
+  const columnNames = paymentColumns.map((row) => row.column_name);
+  ok(
+    "orders record a payment method",
+    columnNames.includes("payment_method_id"),
+    "run 0003_cod.sql",
+  );
+  ok("orders record a payment status", columnNames.includes("payment_status"), "run 0003_cod.sql");
+
+  if (columnNames.length === 2) {
+    const statuses = await sql<{ payment_method_id: string; payment_status: string; count: string }[]>`
+      select payment_method_id, payment_status, count(*)::text as count
+      from public.orders group by 1, 2
+    `;
+    ok(
+      "every order uses a known payment method",
+      statuses.every((row) => row.payment_method_id === "cod"),
+      [...new Set(statuses.map((row) => row.payment_method_id))].join(", "),
+    );
+    ok(
+      "no order claims to be paid without being settled",
+      statuses.every((row) =>
+        ["on-delivery", "unpaid", "paid", "not-required"].includes(row.payment_status),
+      ),
+      [...new Set(statuses.map((row) => row.payment_status))].join(", "),
+    );
+    const settled = statuses
+      .filter((row) => row.payment_status === "paid")
+      .reduce((total, row) => total + Number(row.count), 0);
+    console.log(`        ${settled} orders recorded as paid`);
+  }
+
+  // A paid order must carry a payment record, and payment_status must agree.
+  // Both are database constraints; asserting them here means a partially
+  // applied migration is caught rather than trusted.
+  const orderConstraints = await sql<{ conname: string }[]>`
+    select conname from pg_constraint
+    where conrelid = 'public.orders'::regclass and contype = 'c'
+  `;
+  const constraintNames = orderConstraints.map((row) => row.conname);
+  for (const name of ["orders_paid_requires_payment", "orders_paid_status_agrees"]) {
+    ok(
+      `the "${name}" constraint exists`,
+      constraintNames.includes(name),
+      "the database must refuse a contradictory payment state",
+    );
+  }
+
   console.log(`\n${pass} passed, ${fail} failed, ${skip} skipped`);
   process.exit(fail === 0 ? 0 : 1);
 }

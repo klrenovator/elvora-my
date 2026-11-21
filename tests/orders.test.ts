@@ -352,6 +352,7 @@ async function main() {
     reference,
     createdAt: new Date().toISOString(),
     status: "pending-payment",
+    paymentStatus: "on-delivery",
     locale: "en",
     customer: normaliseCustomer(CUSTOMER),
     lines: [

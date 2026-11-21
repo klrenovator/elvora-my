@@ -18,6 +18,11 @@ import {
 } from "@/lib/order-pricing";
 import { getOrderRepository, OrderStorageError, ordersAreDurable } from "@/lib/order-repository";
 import { getCatalogue } from "@/lib/catalogue/repository";
+import {
+  defaultPaymentMethod,
+  paymentMethodById,
+  type PaymentMethod,
+} from "@/lib/payments/methods";
 import { stateByCode } from "@/content/malaysia";
 
 /**
@@ -30,12 +35,13 @@ import { stateByCode } from "@/content/malaysia";
  *    a client-side check is a courtesy, not a control.
  * 3. Re-price every line from the catalogue. The browser's total is compared,
  *    never trusted.
- * 4. Record the order as `pending-payment`.
+ * 4. Record the order with its payment method and an honest payment status.
  *
- * There is deliberately no branch that marks an order paid. Payment status can
- * only move through a verified provider callback, and no provider is
- * configured — so an order placed today is a record of intent with a clear
- * "payment not taken" status, not a pretend sale.
+ * The order is `pending-payment` with `paymentStatus: "on-delivery"`: the
+ * customer owes cash to the courier, so the shop is not yet paid and says so.
+ * There is deliberately no branch here that marks an order paid, because money
+ * has not moved. Marking a COD order paid happens later, by the owner, once the
+ * cash is actually in hand.
  */
 
 export interface CheckoutState {
@@ -52,6 +58,8 @@ export interface CheckoutState {
   subtotalSen?: number;
   /** Whether the order is durably stored, so the UI can be accurate. */
   durable?: boolean;
+  /** The method the order was recorded with, echoed back for the confirmation. */
+  paymentMethodId?: string;
 }
 
 /**
@@ -108,6 +116,15 @@ export async function placeOrder(
   const rawLocale = String(formData.get("locale") ?? "");
   if (!isLocale(rawLocale)) return { error: "Unsupported language." };
   const locale: Locale = rawLocale;
+
+  // The customer's chosen method, resolved against the registry rather than
+  // trusted. An unknown value falls back to the default instead of being
+  // stored, so the database can never hold a method that does not exist.
+  const requestedMethod = String(formData.get("paymentMethod") ?? "");
+  const method: PaymentMethod = paymentMethodById(requestedMethod) ?? defaultPaymentMethod;
+  if (!method.available) {
+    return { error: "That payment method is not available. Please choose another." };
+  }
 
   const address = addressFrom(formData);
 
@@ -196,6 +213,10 @@ export async function placeOrder(
       reference: orderReference(),
       createdAt: new Date().toISOString(),
       status: "pending-payment",
+      paymentMethodId: method.id,
+      // Cash is collected on delivery, so nothing has been received yet. This
+      // is the honest state, not a placeholder for a missing gateway.
+      paymentStatus: method.settlement === "on-delivery" ? "on-delivery" : "unpaid",
       locale,
       customer: storedCustomer,
       lines,
@@ -222,5 +243,6 @@ export async function placeOrder(
     reference: order.reference,
     subtotalSen: order.totalSen,
     durable: ordersAreDurable(repository),
+    paymentMethodId: order.paymentMethodId ?? method.id,
   };
 }
