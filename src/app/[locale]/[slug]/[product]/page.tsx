@@ -27,7 +27,6 @@ import {
   serialiseJsonLd,
 } from "@/lib/seo";
 import { resolvePrice } from "@/lib/pricing";
-import { cartEnabled } from "@/lib/features";
 
 export const dynamicParams = false;
 
@@ -191,12 +190,7 @@ export default async function ProductPage({
                 </a>
               </div>
 
-              <ProductPurchase
-                product={product}
-                locale={locale}
-                price={price}
-                cartEnabled={cartEnabled}
-              />
+              <ProductPurchase product={product} locale={locale} price={price} />
             </div>
           </div>
         </Container>

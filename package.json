@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx tests/pricing.test.ts && tsx tests/catalogue.test.ts && tsx tests/language-switch.test.ts"
+    "test": "tsx tests/pricing.test.ts && tsx tests/catalogue.test.ts && tsx tests/language-switch.test.ts && tsx tests/cart.test.ts && tsx tests/address.test.ts && tsx tests/checkout-render.test.tsx && tsx tests/admin-auth.test.ts && tsx tests/admin-form.test.ts && tsx tests/admin-repository.test.ts && tsx tests/admin-editor.test.tsx",
+    "admin:hash": "tsx scripts/hash-password.ts"
   },
   "engines": {
     "node": "^22.18.0 || >=24.11.0"

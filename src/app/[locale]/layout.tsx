@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { assertLocale, htmlLang, isLocale, locales, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/lib/dictionary";
 import { SiteHeader } from "@/components/site-header";
+import { CartProvider } from "@/components/cart-provider";
 import { SiteFooter } from "@/components/site-footer";
 import { organizationLd, serialiseJsonLd, webSiteLd } from "@/lib/seo";
 import { site } from "@/lib/site";
@@ -46,9 +47,11 @@ export default async function LocaleLayout({
         <a href="#main" className="skip-link">
           {dict.common.skipToContent}
         </a>
-        <SiteHeader locale={locale} />
-        <main id="main">{children}</main>
-        <SiteFooter locale={locale} />
+        <CartProvider>
+          <SiteHeader locale={locale} />
+          <main id="main">{children}</main>
+          <SiteFooter locale={locale} />
+        </CartProvider>
         <script
           type="application/ld+json"
           // Structured data built from our own literals only.

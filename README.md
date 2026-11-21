@@ -23,7 +23,7 @@ falling back to English.
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm test            # pricing, catalogue and language-switch assertions
+npm test            # 364 assertions across 9 suites
 npm run build       # production build, all routes pre-rendered
 ```
 
@@ -37,6 +37,7 @@ src/
       page.tsx              homepage (hero, collections, grades, trust, FAQ, CTA)
       [slug]/page.tsx       categories + editorial pages (statically generated)
       [slug]/[product]/     product pages, catalog segment localized per language
+    admin/                owner-only product management (outside the locale tree)
     sitemap.ts              multilingual sitemap with hreflang alternates
     robots.ts               robots.txt
     llms.txt/route.ts       plain-text summary for AI assistants
@@ -56,9 +57,49 @@ src/
     validate-catalogue.ts   build-time guard against bad product data
     features.ts             flags for capabilities not yet implemented
     site.ts                 brand config and contact channels (nulls = not supplied)
-  proxy.ts                  language entry routing, `/` → locale
+    admin/                  auth, session cookies, product form rules
+    catalogue/repository.ts the persistence boundary (static today, database-ready)
+  components/admin/         product editor
+  proxy.ts                  language entry routing, `/` → locale (admin excluded)
+scripts/hash-password.ts    generates ADMIN_PASSWORD_HASH + ADMIN_SESSION_SECRET
 public/images/              temporary AI illustrations (see below)
 ```
+
+## Cart and checkout
+
+| Language | Cart | Checkout |
+| --- | --- | --- |
+| English | `/en/cart` | `/en/checkout` |
+| Malay | `/ms/troli` | `/ms/pembayaran` |
+| Chinese | `/zh/gou-wu-che` | `/zh/jie-zhang` |
+
+Both are `noindex` and excluded from the sitemap — they carry no standalone
+search value and would otherwise compete with category pages.
+
+### How the cart enforces the pricing rules
+
+`src/lib/cart-store.ts` holds the logic and is free of React so it can be tested
+directly:
+
+- An unpriced product **cannot** be added — there is nothing to charge.
+- Each line stores the price it was added at. `reconcile()` compares that
+  snapshot with the live price and raises `price-changed`, which the customer
+  must explicitly accept before checkout unlocks. Prices are never silently
+  updated.
+- Totals always come from the live catalogue, so editing `localStorage` (which
+  users can do) produces a visible notice rather than a discount.
+- Quantities are clamped to real stock; delisted products are flagged and
+  contribute nothing to the subtotal.
+
+### Payment status
+
+Payment is **not connected**. `features.payments` is `false`, so checkout
+collects and validates the delivery address, then produces a copyable order
+summary — it does not take payment or submit an order. The page says this
+plainly rather than implying a completed purchase.
+
+To go live, connect a Malaysian provider (FPX, cards, DuitNow), then flip
+`features.payments` in `src/lib/features.ts` in the same commit.
 
 ## Product pages
 
@@ -151,13 +192,65 @@ component and update the colour tokens in `src/app/globals.css` (`@theme`
 block). No page-level markup references brand colours directly for anything
 that would need to change.
 
+## Admin
+
+The product-management screen lives at `/admin`, deliberately outside the
+locale tree and excluded from robots.txt and the sitemap. It is a single-owner
+tool: no accounts, no roles, no third-party sign-in.
+
+### Setup
+
+```bash
+npm run admin:hash -- "a long password of your choosing"
+```
+
+That prints two values. Add them to your environment (locally in `.env.local`,
+in production in your host's settings):
+
+```bash
+ADMIN_PASSWORD_HASH=scrypt$<salt>$<hash>
+ADMIN_SESSION_SECRET=<random 32+ characters>
+```
+
+Only the hash is stored — the password itself exists nowhere. Re-run the helper
+to change it; changing the session secret signs every session out.
+
+With either value missing, the admin refuses every login and says which one is
+missing. There is no default password and no fallback, by design.
+
+### What it does today
+
+`/admin/products` lists the catalogue with filters, and `/admin/products/[id]`
+edits a product in all three languages with a separate SEO block. Authentication,
+validation and the editing UI are complete and tested.
+
+**Saves do not persist yet.** The catalogue is still compiled into the build, so
+the repository refuses writes rather than reporting a save that did not happen,
+and the screen says so plainly. Every read and write goes through a
+`ProductRepository` interface (`src/lib/catalogue/repository.ts`), so connecting
+a database is one file — see "Open question" in [PROGRESS.md](./PROGRESS.md).
+
+### Security notes
+
+- scrypt password hashing, constant-time comparison, per-install salt.
+- Sessions are HMAC-signed tokens carrying only an expiry (8 hours), in an
+  HttpOnly, SameSite=strict cookie that is Secure in production.
+- Login is rate limited: five failures in fifteen minutes blocks that address
+  for fifteen minutes. The counter is in memory, so it is per instance and
+  resets on redeploy — adequate for a single owner, documented rather than
+  overbuilt.
+- Every admin page and server action checks the session; nothing is trusted
+  from the client.
+
 ## Environment variables
 
-| Variable | Purpose |
-| --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Canonical origin used in metadata, sitemap and hreflang. Defaults to `https://elvora.my`. |
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | No | Canonical origin used in metadata, sitemap and hreflang. Defaults to `https://elvora.my`. |
+| `ADMIN_PASSWORD_HASH` | For admin | Password hash from `npm run admin:hash`. Without it the admin refuses all logins. |
+| `ADMIN_SESSION_SECRET` | For admin | Signs session cookies. Must be 32+ characters. |
 
-None are required for local development.
+The storefront needs none of these; only the admin area does.
 
 ## Progress
 

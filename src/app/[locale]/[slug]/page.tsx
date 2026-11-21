@@ -15,6 +15,7 @@ import {
 import { Breadcrumbs, CategoryCard, categoryRoutes } from "@/components/category-cards";
 import { FaqAccordion } from "@/components/faq-accordion";
 import { ProductCard } from "@/components/product-card";
+import { CartView } from "@/components/cart-view";
 import { productsByCategory } from "@/content/products";
 import { Container, Eyebrow, Rule } from "@/components/ui";
 import { PageBlocks, RelatedCategories } from "@/lib/content-page";
@@ -30,8 +31,17 @@ import {
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  return allLocalisedSlugs().map(({ locale, slug }) => ({ locale, slug }));
+  const params = allLocalisedSlugs().map(({ locale, slug }) => ({ locale, slug }));
+  // Cart is a first-class page but lives at a fixed localized path, so it is
+  // added here alongside categories and editorial pages.
+  for (const locale of locales) {
+    params.push({ locale, slug: cartSlug[locale] });
+  }
+  return params;
 }
+
+/** Localized cart slug. Must stay in step with the "cart" route pattern. */
+const cartSlug: Record<Locale, string> = { en: "cart", ms: "troli", zh: "gou-wu-che" };
 
 export async function generateMetadata({
   params,
@@ -40,6 +50,32 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale, slug } = await params;
   if (!isLocale(locale)) return {};
+
+  if (slug === cartSlug[locale]) {
+    const alternates = Object.fromEntries(
+      locales.map((code) => [code, pathFor("cart", code)]),
+    ) as Record<Locale, string>;
+    const titles: Record<Locale, string> = {
+      en: "Your cart",
+      ms: "Troli anda",
+      zh: "购物车",
+    };
+    const descriptions: Record<Locale, string> = {
+      en: "Review the genuine leather pieces in your cart before checking out. Delivery is calculated from your postcode.",
+      ms: "Semak barang kulit asli dalam troli anda sebelum pembayaran. Penghantaran dikira berdasarkan poskod anda.",
+      zh: "结账前先确认购物车中的真皮产品。运费将依据你的邮政编码计算。",
+    };
+    return buildMetadata({
+      locale,
+      path: alternates[locale],
+      alternates,
+      title: titles[locale],
+      description: descriptions[locale],
+      // Transactional page: no value in search results, and indexing it would
+      // compete with category pages for the same queries.
+      noindex: true,
+    });
+  }
 
   const resolved = resolveSlug(locale, slug);
   if (!resolved) return {};
@@ -83,6 +119,11 @@ export default async function DynamicPage({
   const { locale: raw, slug } = await params;
   if (!isLocale(raw)) notFound();
   const locale: Locale = raw;
+
+  if (slug === cartSlug[locale]) {
+    return <CartPageView locale={locale} />;
+  }
+
   const resolved = resolveSlug(locale, slug);
   if (!resolved) notFound();
 
@@ -90,6 +131,25 @@ export default async function DynamicPage({
     return <CategoryView locale={locale} categoryId={resolved.category.id} />;
   }
   return <ContentView locale={locale} pageKey={resolved.key} />;
+}
+
+/* --------------------------------- Cart ---------------------------------- */
+
+function CartPageView({ locale }: { locale: Locale }) {
+  const dict = getDictionary(locale);
+
+  return (
+    <Container className="py-12 sm:py-16">
+      <div className="max-w-2xl">
+        <h1 className="font-display text-[2.2rem] leading-[1.08] tracking-[-0.02em] text-[color:var(--color-ink-strong)] sm:text-[2.6rem]">
+          {dict.cart.title}
+        </h1>
+      </div>
+      <div className="mt-10">
+        <CartView locale={locale} />
+      </div>
+    </Container>
+  );
 }
 
 /* ------------------------------- Category ------------------------------- */
