@@ -23,7 +23,8 @@ falling back to English.
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm test            # 536 assertions across 13 suites
+npm test            # 657 assertions across 14 suites
+npm run verify      # typecheck + lint + tests + build, in one command
 npm run build       # production build, all routes pre-rendered
 ```
 
@@ -221,6 +222,41 @@ component and update the colour tokens in `src/app/globals.css` (`@theme`
 block). No page-level markup references brand colours directly for anything
 that would need to change.
 
+## Database (Supabase)
+
+Catalogue edits and customer orders are stored in Supabase Postgres when
+`SUPABASE_DB_URL` is set. Setup: [docs/SUPABASE-SETUP.md](./docs/SUPABASE-SETUP.md).
+
+```bash
+npm run db:seed     # copy the compiled 7 products into the database (insert-only)
+npm run db:verify   # check RLS, constraints, and that the public key is denied
+```
+
+**Without a database the site still works.** It serves the compiled catalogue
+and keeps orders in memory, exactly as in earlier phases. That is a supported
+state, not a broken one — a fresh clone and any preview deploy run this way.
+
+### Two data sources, one rule
+
+- **Storefront** reads the live catalogue and *falls back* to the compiled seed
+  if the database is unreachable. A shop that stays up during a database blip is
+  worth more than one that shows an error page.
+- **Checkout** never falls back. It prices against the live catalogue and
+  **refuses** if it cannot read it. An order must never be priced from stale
+  data, and the customer is told nothing was charged.
+
+Because the storefront cache is 60 seconds, a price edit can take up to a minute
+to appear. If a customer's cart holds the old price, checkout refuses and asks
+them to review — it never charges the wrong total.
+
+### Security posture
+
+Row Level Security is enabled on both tables with **no policies at all**. The
+application connects only from the server with a role that bypasses RLS, so the
+correct policy for the public key is "deny everything". Customer names, phone
+numbers and addresses are not reachable with the anon key, and
+`npm run db:verify` proves it rather than asserting it.
+
 ## Admin
 
 The product-management screen lives at `/admin`, deliberately outside the
@@ -253,11 +289,12 @@ missing. There is no default password and no fallback, by design.
 edits a product in all three languages with a separate SEO block. Authentication,
 validation and the editing UI are complete and tested.
 
-**Saves do not persist yet.** The catalogue is still compiled into the build, so
-the repository refuses writes rather than reporting a save that did not happen,
-and the screen says so plainly. Every read and write goes through a
-`ProductRepository` interface (`src/lib/catalogue/repository.ts`), so connecting
-a database is one file — see "Open question" in [PROGRESS.md](./PROGRESS.md).
+**Saving persists once Supabase is connected** (see "Database" above). Without
+it the catalogue is compiled into the build, so the repository refuses writes
+rather than reporting a save that did not happen, and the screen says so
+plainly. Every read and write goes through a `ProductRepository` interface
+(`src/lib/catalogue/repository.ts`), so the whole difference is one environment
+variable.
 
 ### Security notes
 
@@ -278,7 +315,12 @@ a database is one file — see "Open question" in [PROGRESS.md](./PROGRESS.md).
 | `NEXT_PUBLIC_SITE_URL` | No | Canonical origin used in metadata, sitemap and hreflang. Defaults to `https://elvora.my`. |
 | `ADMIN_PASSWORD_HASH` | For admin | Password hash from `npm run admin:hash`. Without it the admin refuses all logins. |
 | `ADMIN_SESSION_SECRET` | For admin | Signs session cookies. Must be 32+ characters. |
-| `DATABASE_URL` | Not yet used | Where a Postgres repository would connect. Nothing reads it today. |
+| `SUPABASE_DB_URL` | Optional | Supabase **pooler** connection string (port 6543). Enables persistent catalogue and orders. Without it the site runs on the compiled catalogue. |
+| `SUPABASE_URL` | Optional | Project URL, used only by `npm run db:verify`. |
+| `SUPABASE_ANON_KEY` | Optional | Public anon key, used only to prove public access is denied. |
+
+Full setup, including creating the tables and verifying row-level security, is
+in [docs/SUPABASE-SETUP.md](./docs/SUPABASE-SETUP.md).
 
 The storefront needs none of these; only the admin area does.
 

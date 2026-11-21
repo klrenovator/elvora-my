@@ -7,7 +7,8 @@ import type { Order } from "@/lib/orders";
  * where orders live is a hosting decision, and it should not leak into the
  * checkout code.
  *
- * `MemoryOrderRepository` is the default and is honest about what it is: records
+ * `MemoryOrderRepository` is the fallback when no database is configured, and
+ * is honest about what it is: records
  * survive for the life of the server process and are lost on redeploy. That is
  * genuinely useful — it makes the checkout flow complete, testable and correct
  * today — but it is not a durable order book, and the storefront says so.
@@ -72,9 +73,22 @@ export class MemoryOrderRepository implements OrderRepository {
   }
 }
 
-let active: OrderRepository = new MemoryOrderRepository();
+/**
+ * Selection is by environment, mirroring the catalogue: with a Supabase
+ * connection string orders are persisted, without one they are held in memory.
+ */
+function selectOrderRepository(): OrderRepository {
+  if (!process.env.SUPABASE_DB_URL && !process.env.DATABASE_URL) {
+    return new MemoryOrderRepository();
+  }
+  const { PostgresOrderRepository } = require("@/lib/db/order-repository") as typeof import("@/lib/db/order-repository");
+  return new PostgresOrderRepository();
+}
+
+let active: OrderRepository | null = null;
 
 export function getOrderRepository(): OrderRepository {
+  if (!active) active = selectOrderRepository();
   return active;
 }
 
@@ -83,7 +97,13 @@ export function setOrderRepository(repository: OrderRepository): void {
   active = repository;
 }
 
+/** Reset to the environment-selected repository. */
 export function resetOrderRepository(): void {
+  active = null;
+}
+
+/** Explicitly pin the in-memory store, regardless of environment. */
+export function useMemoryOrders(): void {
   active = new MemoryOrderRepository();
 }
 
@@ -93,6 +113,6 @@ export function resetOrderRepository(): void {
  * Takes an optional repository so a caller holding a reference (a server action
  * mid-flight) asks about the store it actually wrote to.
  */
-export function ordersAreDurable(repository: OrderRepository = active): boolean {
+export function ordersAreDurable(repository: OrderRepository = getOrderRepository()): boolean {
   return !(repository instanceof MemoryOrderRepository);
 }

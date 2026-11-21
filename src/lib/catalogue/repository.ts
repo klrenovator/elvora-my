@@ -92,12 +92,27 @@ export class CatalogueWriteError extends Error {
 }
 
 /**
- * The repository in use. Swapping the implementation here — or selecting it
- * from an environment variable — is the whole migration.
+ * The repository in use.
+ *
+ * Selection is by environment: when a Supabase connection string is present the
+ * database repository is used, otherwise the compiled seed catalogue is. This
+ * means the site runs identically with or without a database — a fresh clone,
+ * a preview deploy without secrets, and CI all keep working.
  */
-let active: ProductRepository = new StaticProductRepository();
+function selectRepository(): ProductRepository {
+  if (!process.env.SUPABASE_DB_URL && !process.env.DATABASE_URL) {
+    return new StaticProductRepository();
+  }
+  // Imported lazily so the Postgres driver is never loaded when it is not used,
+  // and so a missing driver cannot break the no-database path.
+  const { PostgresProductRepository } = require("./postgres-repository") as typeof import("./postgres-repository");
+  return new PostgresProductRepository();
+}
+
+let active: ProductRepository | null = null;
 
 export function getCatalogue(): ProductRepository {
+  if (!active) active = selectRepository();
   return active;
 }
 
@@ -106,7 +121,13 @@ export function setCatalogue(repository: ProductRepository): void {
   active = repository;
 }
 
+/** Reset to the environment-selected repository. */
 export function resetCatalogue(): void {
+  active = null;
+}
+
+/** Explicitly pin the compiled-in catalogue, regardless of environment. */
+export function useStaticCatalogue(): void {
   active = new StaticProductRepository();
 }
 
@@ -117,5 +138,5 @@ export function resetCatalogue(): void {
  * read-only deployment disables the button instead of failing after the click.
  */
 export async function catalogueIsWritable(): Promise<boolean> {
-  return !(active instanceof StaticProductRepository);
+  return !(getCatalogue() instanceof StaticProductRepository);
 }

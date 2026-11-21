@@ -84,6 +84,32 @@ export async function logout(): Promise<void> {
   redirect("/admin/login");
 }
 
+/**
+ * Invalidate every storefront surface that shows product data.
+ *
+ * `revalidatePath("/", "layout")` covers the localized pages, but the product
+ * URLs carry per-language slugs and category pages list products, so the
+ * affected paths are invalidated explicitly rather than relying on a timeout.
+ * Getting this wrong is the difference between "saved" and "saved but invisible"
+ * — the precise failure this project has refused from the start.
+ */
+function revalidateStorefront(product?: { slug: Record<string, string> }): void {
+  revalidatePath("/admin/products");
+  revalidatePath("/", "layout");
+  revalidatePath("/sitemap.xml");
+
+  // Every language's product URL, plus the category pages that list it.
+  if (product) {
+    for (const locale of ["en", "ms", "zh"] as const) {
+      const catalog = locale === "en" ? "products" : locale === "ms" ? "produk" : "chan-pin";
+      revalidatePath(`/${locale}/${catalog}/${product.slug[locale]}`);
+    }
+  }
+  for (const locale of ["en", "ms", "zh"] as const) {
+    revalidatePath(`/${locale}`, "layout");
+  }
+}
+
 export interface SaveState {
   ok?: boolean;
   error?: string;
@@ -134,8 +160,7 @@ export async function saveProduct(
     return { error: "Could not save the product. Nothing was changed." };
   }
 
-  revalidatePath("/admin/products");
-  revalidatePath("/", "layout");
+  revalidateStorefront(product);
   return { ok: true };
 }
 
@@ -159,8 +184,7 @@ export async function setProductStatus(formData: FormData): Promise<void> {
   }
 
   await catalogue.update(id, { ...existing, status });
-  revalidatePath("/admin/products");
-  revalidatePath("/", "layout");
+  revalidateStorefront(existing);
 }
 
 function formValuesFrom(formData: FormData): ProductFormValues {

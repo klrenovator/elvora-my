@@ -3,7 +3,7 @@
 This file is the single source of truth for what has been built, what has been
 verified, and what comes next. Update it at the end of every working session.
 
-**Last updated:** Phase 2d completed (orders, server-side pricing, payment boundary).
+**Last updated:** Phase 3a completed (Supabase persistence with RLS).
 
 ---
 
@@ -18,6 +18,7 @@ verified, and what comes next. Update it at the end of every working session.
 | 2c | Admin product management screen (add/edit/publish/pricing) | ✅ Complete (persistence decision pending) |
 | 2d | Order records, server-side re-pricing, payment-provider boundary | ✅ Complete |
 | 2e | Payment provider implementation (FPX / cards / DuitNow) | ⬜ Blocked on owner's merchant account |
+| 3a | Supabase persistence: catalogue edits and orders stored permanently, RLS | ✅ Complete |
 | 3 | Multilingual completion for commerce surfaces (cart, checkout, forms, admin) | ⬜ Blocked by Phase 2 |
 | 4 | Nationwide location SEO: Malaysia geo database, location pages, internal linking | ⬜ Not started |
 | 5 | Content marketing, AEO/GEO/LLMO assets, articles | ⬜ Deferred until Phase 2–4 |
@@ -355,20 +356,110 @@ but its logic is verified by calling it directly rather than through a
 reconstructed payload.
 
 ---
+## Phase 3a — Supabase persistence (completed)
+
+Catalogue edits and orders now persist in Supabase Postgres, behind the
+interfaces built in earlier phases. The choice of Supabase over Neon/Vercel
+Postgres was the owner's, for the bundled Auth and Storage later.
+
+**What this phase is not:** it does not touch authentication (the single-owner
+password from Phase 2c still works) and it does not touch payments
+(`features.payments` is still `false`). Both were explicit scope decisions.
+
+### Schema (`supabase/migrations/0001_init.sql`)
+
+- **`products`**: the full trilingual `Product` document in `jsonb`, with
+  `status`, `category`, `sort_order` and the three slugs lifted into indexed
+  columns for filtering and page lookup. Not fully normalised on purpose — the
+  shape is deeply nested and translated, and exploding it would create a dozen
+  joins per page for no query anyone makes.
+- **`orders`**: customer and lines stored as immutable `jsonb` copies taken at
+  ordering time, because an order records what was agreed, not what is true now.
+- **Constraints that encode business rules in the database**, so a bug cannot
+  bypass them:
+  - `orders_paid_requires_payment` — a `paid` order must carry a payment
+    record, and an unpaid order must not.
+  - `orders_total_matches_subtotal` — `total = subtotal + shipping`.
+  - status and locale confined to known values; unique slug per language.
+
+### Security
+
+RLS is enabled on both tables with **no policies and no grants** for `anon` or
+`authenticated`. The application reaches Postgres only from the server (server
+components and server actions) using a role that bypasses RLS, so the correct
+policy for the public key is denial. This means customer names, phone numbers
+and addresses are not readable with the public key, and `npm run db:verify`
+proves it by actually calling the REST API with the anon key.
+
+### Storefront reads the live catalogue
+
+Seven modules previously imported `@/content/products` directly. Product pages,
+category pages, the sitemap and the cart now read through
+`src/lib/catalogue/storefront.ts`. Without this, a save in the admin would have
+persisted and changed nothing the customer could see — the exact failure this
+project has refused from the start.
+
+- Product pages: `dynamicParams = true` and `revalidate = 60`, so a product
+  created in the admin resolves without a redeploy and a price edit appears
+  within a minute.
+- Saving in the admin revalidates the affected product URLs, category pages,
+  the storefront layout and the sitemap.
+- The language switcher's slug translations are synced from the live catalogue,
+  so an admin-created product translates across languages instead of falling
+  back to the homepage.
+
+### Two different failure policies, deliberately
+
+| Surface | Database unreachable | Why |
+| --- | --- | --- |
+| Storefront | Serve the compiled seed, log a warning | A shop that stays up during a blip beats an error page |
+| Checkout | **Refuse**, "nothing has been ordered or charged" | An order must never be priced from stale data |
+
+The checkout path was changed during this phase: an unhandled database error
+previously produced a 500. It now returns a sentence the customer can act on,
+and a test asserts no order is written in that case.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| Product row ↔ document round trip (all 7) | ✅ lossless, JSON-identical |
+| Lifted columns always match the document | ✅ |
+| Document wins over a tampered lifted column | ✅ |
+| Order row ↔ order round trip | ✅ lossless, timestamps preserved |
+| Unknown order status never reads as paid | ✅ falls back to `pending-payment` |
+| Migration enables RLS on both tables | ✅ asserted from the SQL file |
+| Migration defines no permissive policy | ✅ asserted from the SQL file |
+| Anon/authenticated grants revoked | ✅ |
+| Payment and total constraints present | ✅ |
+| Writes: `on conflict do nothing`, scoped updates | ✅ asserted from source |
+| Price lookup is parameterised, never interpolated | ✅ |
+| No database configured | ✅ site, products, cart, checkout all 200 |
+| Database unreachable, storefront | ✅ seed served, requests 200 |
+| Database unreachable, checkout | ✅ refused with a clear message, no order |
+| `npm test` | ✅ 657 assertions across 14 suites |
+| `npm run typecheck` / `lint` / `build` | ✅ clean, 87 pages |
+
+**Not verifiable in this environment:** no Supabase project exists here, so the
+SQL was not executed against a live server, and the repository classes were not
+exercised against real Postgres. The mapping, constraints, security posture and
+query shapes are covered by tests; `npm run db:verify` is the step that closes
+the gap against the real project, and it is written to fail loudly.
+
+---
 
 ## Known gaps and deliberate deferrals
 
-1. **Catalogue edits do not persist yet.** The content is compiled into the
-   build and no database is connected, so the admin is read-only by design. The
-   repository interface and the UI are finished; connecting a database is the
-   remaining step (see "Open question").
+1. **Persistence needs the owner to create the Supabase project.** The code,
+   schema, RLS policies and seed/verify scripts are complete and tested, but no
+   project exists yet, so the site still runs on the compiled catalogue. Steps
+   are in `docs/SUPABASE-SETUP.md`.
 2. **No payments.** Phase 2e. Orders are recorded, re-priced and viewable, but
    no provider is connected (FPX/cards/DuitNow need an owner merchant account).
    Every order is `pending-payment` and nothing claims otherwise.
-3. **Order records are not durable.** They live in server memory and are lost
-   on restart. Real but temporary, stated in both the confirmation screen and
-   the admin list. A database-backed repository is the fix (see "Open
-   question").
+3. **Orders are durable only once Supabase is connected.** Without a database
+   they live in server memory and are lost on restart, which the confirmation
+   screen and admin both state. With `SUPABASE_DB_URL` set they persist.
 4. **Images cannot be uploaded from the admin.** A product photo can only be
    added in the repository, so publishing requires one to exist already. Upload
    needs a storage bucket and is deliberately not faked.
@@ -387,25 +478,19 @@ reconstructed payload.
 
 ---
 
-## Open question — catalogue and order persistence
+## Open question — hosting plan and backups
 
-The admin UI, validation and authorisation are complete and verified, and orders
-are recorded and re-priced correctly. What is **not** decided is **where that
-data lives**. This now blocks two things at once: catalogue edits cannot persist,
-and orders are lost when the server restarts. Two honest options:
+The persistence question is settled: Supabase, with RLS, behind the interfaces
+from Phases 2c and 2d. Two operational decisions remain, and both are the
+owner's because they involve spending money:
 
-| Option | What it means | Cost | Trade-off |
-| --- | --- | --- | --- |
-| **A. Keep compiled content** | Owner edits `src/content/products.ts`, commits, redeploys. The `/admin` screen stays a review-and-validate tool. | Free | Every price change is a deploy; no non-technical editing. |
-| **B. Connect Vercel Postgres / Neon** | Implement `PostgresProductRepository` and `PostgresOrderRepository`, set `DATABASE_URL`. The admin becomes a real CMS and orders survive restarts. | ~$0–20/month at this scale | A managed database to back up and maintain. |
+| Decision | Free | Pro ($25/month) |
+| --- | --- | --- |
+| Supabase plan | 500 MB, **pauses after 7 days idle**, **no backups** | 8 GB, never pauses, daily backups for 7 days |
 
-Nothing further is blocked by this except the write path itself: the storefront,
-cart and checkout read through the same interface, so either choice is a
-one-file change. **Recommendation: option B**, because the whole point of the
-Phase 2c screen is to let the owner change a price without a developer. This
-needs the owner's decision on hosting cost.
-
----
+Free is fine for building and testing. For a shop taking real orders, the
+7-day pause and the absence of backups are both unacceptable, so **Pro is the
+recommendation before launch**. Nothing in the code depends on the plan.
 
 ## Next task
 
@@ -421,6 +506,6 @@ Everything around it is now in place, so the remaining work is bounded:
 3. Flip `features.payments` in the same commit that the sandbox test passes,
    never before.
 
-**One decision is still open and it now blocks two things** (see below): where
-the catalogue and orders are stored. Until it is answered, the admin cannot
-persist edits and orders are lost on restart.
+**Before launch:** create the Supabase project (`docs/SUPABASE-SETUP.md`), run
+`npm run db:seed`, and confirm `npm run db:verify` passes. Then move to the Pro
+plan so the database does not pause and backups exist.

@@ -284,6 +284,25 @@ async function main() {
     check("only one write was attempted", attempts === 1);
   }
 
+  {
+    // If the catalogue cannot be read, the order must be refused — never
+    // priced from a stale fallback — and the customer must get a sentence
+    // rather than a 500.
+    setCatalogue({
+      ...repository,
+      async byId() {
+        throw new Error("connect ECONNREFUSED");
+      },
+    });
+    const result = await placeOrder({}, submission());
+    check("a catalogue read failure refuses the order", result.ok !== true);
+    check(
+      "the refusal says nothing was ordered or charged",
+      /nothing has been ordered or charged/i.test(result.error ?? ""),
+    );
+    check("no order was stored on a pricing failure", result.reference === undefined);
+  }
+
   resetCatalogue();
   resetOrderRepository();
 

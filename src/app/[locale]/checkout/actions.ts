@@ -1,6 +1,5 @@
 "use server";
 
-import { products } from "@/content/products";
 import { validateAddress, type AddressInput } from "@/lib/address";
 import { isLocale, type Locale } from "@/i18n/config";
 import {
@@ -55,14 +54,16 @@ export interface CheckoutState {
   durable?: boolean;
 }
 
-/** Look products up through the catalogue repository, not the seed array. */
+/**
+ * Look products up through the live catalogue.
+ *
+ * This is the single authority on what a product costs. If the database is
+ * unreachable the lookup throws and the order is refused — deliberately unlike
+ * the storefront, which falls back to the seed so browsing keeps working. An
+ * order must never be priced from a stale fallback.
+ */
 async function findProduct(productId: string) {
-  const catalogue = getCatalogue();
-  const fromRepository = await catalogue.byId(productId);
-  if (fromRepository) return fromRepository;
-  // The repository is the authority; the seed array is a fallback only for the
-  // compiled-in catalogue, where the two are the same data.
-  return products.find((product) => product.id === productId);
+  return getCatalogue().byId(productId);
 }
 
 function addressFrom(formData: FormData): AddressInput {
@@ -142,7 +143,24 @@ export async function placeOrder(
   }
 
   // 3. Server-side re-pricing. This is the number that matters.
-  const priced = await priceOrderLines(request, findProduct);
+  //
+  //    A catalogue read failure is refused rather than falling back to the
+  //    compiled seed: an order must never be priced from stale data. Catching
+  //    it here turns what would be a 500 into a sentence the customer can act
+  //    on, and guarantees no order was written.
+  let priced: Awaited<ReturnType<typeof priceOrderLines>>;
+  try {
+    priced = await priceOrderLines(request, findProduct);
+  } catch (error) {
+    console.error(
+      "[checkout] catalogue unavailable while pricing an order; refusing:",
+      error instanceof Error ? error.message : error,
+    );
+    return {
+      error:
+        "We could not check current prices just now, so nothing has been ordered or charged. Please try again in a moment.",
+    };
+  }
   if (!priced.ok) {
     return {
       error: "Some items in your cart need attention before the order can be placed.",

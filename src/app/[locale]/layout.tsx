@@ -7,6 +7,8 @@ import { CartProvider } from "@/components/cart-provider";
 import { SiteFooter } from "@/components/site-footer";
 import { organizationLd, serialiseJsonLd, webSiteLd } from "@/lib/seo";
 import { site } from "@/lib/site";
+import { catalogueForStorefront } from "@/lib/catalogue/storefront";
+import { syncProductSlugs } from "@/lib/slug-map";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -41,13 +43,21 @@ export default async function LocaleLayout({
   const locale: Locale = assertLocale(raw);
   const dict = getDictionary(locale);
 
+  // The live catalogue is passed to the cart so a browser reconciles against
+  // the same prices the server will charge. Without this, an admin price edit
+  // would make every existing cart show a total that checkout then refuses.
+  const catalogue = await catalogueForStorefront();
+  // Keep the language switcher's slug translations in step with the live
+  // catalogue, so a product created in the admin translates across languages.
+  syncProductSlugs(catalogue);
+
   return (
     <html lang={htmlLang[locale]} dir="ltr">
       <body className="min-h-screen antialiased">
         <a href="#main" className="skip-link">
           {dict.common.skipToContent}
         </a>
-        <CartProvider>
+        <CartProvider catalogue={catalogue}>
           <SiteHeader locale={locale} />
           <main id="main">{children}</main>
           <SiteFooter locale={locale} />

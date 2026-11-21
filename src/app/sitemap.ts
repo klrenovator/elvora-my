@@ -4,7 +4,7 @@ import { site } from "@/lib/site";
 import { categories } from "@/content/categories";
 import { alternatePaths, pathFor as pathForPath, type RouteKey } from "@/lib/routes";
 import { contentPages, pageRouteKeys } from "@/lib/page-resolver";
-import { visibleProducts } from "@/content/products";
+import { catalogueForStorefront } from "@/lib/catalogue/storefront";
 import type { PageKey } from "@/content/types";
 
 /**
@@ -35,7 +35,14 @@ function alternatesFor(paths: Record<Locale, string>): Record<string, string> {
   return languages;
 }
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export const revalidate = 3600;
+
+/**
+ * Async because product URLs come from the live catalogue: a product created
+ * in the admin must appear in the sitemap without a redeploy. The sitemap is
+ * regenerated hourly, which is frequent enough for a small catalogue.
+ */
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const entries: MetadataRoute.Sitemap = [];
 
@@ -65,7 +72,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }
 
   // Products — published only, each with its own per-language slug.
-  for (const product of visibleProducts()) {
+  for (const product of await catalogueForStorefront()) {
     const paths = Object.fromEntries(
       locales.map((locale) => [
         locale,

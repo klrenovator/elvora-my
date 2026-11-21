@@ -66,8 +66,12 @@ export interface Order {
   customer: OrderCustomer;
   lines: OrderLine[];
   subtotalSen: number;
-  /** Shipping is quoted after the order, so this is explicitly absent rather than 0. */
-  shippingSen: null;
+  /**
+   * Shipping cost. `null` means "quoted after the order" — which is the current
+   * behaviour and must never be stored as 0, because zero is a definite claim
+   * that delivery is free.
+   */
+  shippingSen: number | null;
   totalSen: number;
   /** Set only by a verified provider callback. Always null today. */
   payment: OrderPayment | null;
