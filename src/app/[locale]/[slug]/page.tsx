@@ -14,9 +14,11 @@ import {
 } from "@/lib/page-resolver";
 import { Breadcrumbs, CategoryCard, categoryRoutes } from "@/components/category-cards";
 import { FaqAccordion } from "@/components/faq-accordion";
+import { ContactChannels } from "@/components/contact-channels";
+import { shopWhatsAppLink } from "@/lib/site";
 import { ProductCard } from "@/components/product-card";
 import { CartView } from "@/components/cart-view";
-import { productsByCategory } from "@/content/products";
+import { catalogueForStorefront } from "@/lib/catalogue/storefront";
 import { Container, Eyebrow, Rule } from "@/components/ui";
 import { PageBlocks, RelatedCategories } from "@/lib/content-page";
 import {
@@ -154,7 +156,7 @@ function CartPageView({ locale }: { locale: Locale }) {
 
 /* ------------------------------- Category ------------------------------- */
 
-function CategoryView({
+async function CategoryView({
   locale,
   categoryId,
 }: {
@@ -164,7 +166,11 @@ function CategoryView({
   const dict = getDictionary(locale);
   const category = categories.find((item) => item.id === categoryId)!;
   const faqs = category.faqs[locale];
-  const products = productsByCategory(category.id);
+  // Read the live catalogue so a product published in the admin appears on its
+  // category page within the revalidation window.
+  const products = (await catalogueForStorefront()).filter(
+    (product) => product.category === category.id,
+  );
   const others = categories.filter((item) => item.id !== category.id).slice(0, 4);
   const path = pathFor(categoryRoutes[category.id], locale);
 
@@ -199,8 +205,13 @@ function CategoryView({
               </div>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                {/* Straight to WhatsApp when a number exists. Falls back to the
+                    contact page when it does not, rather than a dead link. */}
                 <Link
-                  href={pathFor("contact", locale)}
+                  href={shopWhatsAppLink() ?? pathFor("contact", locale)}
+                  {...(shopWhatsAppLink()
+                    ? { target: "_blank", rel: "noopener noreferrer" }
+                    : {})}
                   className="inline-flex h-12 items-center justify-center bg-[color:var(--color-espresso)] px-7 text-[0.75rem] font-medium tracking-[0.16em] uppercase text-[color:var(--color-ivory)] transition-colors hover:bg-[color:var(--color-cognac-deep)]"
                 >
                   {dict.category.whatsappCta}
@@ -403,6 +414,15 @@ function ContentView({
               {page.title[locale]}
             </h1>
           </div>
+          {/* On the contact page the channels go first and large: the two
+              ways to reach the shop are the point of the page, not a footnote
+              after the prose. Every other content page gets nothing. */}
+          {pageKey === "contact" ? (
+            <div className="mt-8">
+              <ContactChannels locale={locale} heading={dict.category.whatsappCta} />
+            </div>
+          ) : null}
+
           <div className="mt-8">
             <PageBlocks page={page} locale={locale} />
           </div>

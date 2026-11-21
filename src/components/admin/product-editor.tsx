@@ -8,6 +8,7 @@ import {
   slugify,
   type ProductFormValues,
 } from "@/lib/admin/product-form";
+import { ProductMediaPanel } from "@/components/admin/product-media-panel";
 
 /**
  * Product editor.
@@ -151,6 +152,20 @@ export function ProductEditor({
             </p>
           </fieldset>
         </Section>
+
+        {/* ------------------------------- Photos ---------------------------- */}
+        <ProductMediaPanel
+          images={values.images}
+          onChange={(images) => set("images", images)}
+          productId={values.id || slugify(values.slugEn || values.nameEn)}
+          readOnly={readOnly}
+        />
+
+        {fieldErrors.images ? (
+          <p role="alert" className="border-l-2 border-[#a8442c] px-3 text-[0.8125rem] text-[#a8442c]">
+            {fieldErrors.images}
+          </p>
+        ) : null}
 
         {/* ------------------------------- Price ----------------------------- */}
         <Section title="Price">

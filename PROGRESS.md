@@ -3,7 +3,7 @@
 This file is the single source of truth for what has been built, what has been
 verified, and what comes next. Update it at the end of every working session.
 
-**Last updated:** Phase 2c completed (admin product management).
+**Last updated:** Phase 2f completed (Cash on Delivery and contact channels).
 
 ---
 
@@ -16,11 +16,14 @@ verified, and what comes next. Update it at the end of every working session.
 | 2a | Product model, product pages, manual pricing engine, variant/availability display | ✅ Complete |
 | 2b | Cart, checkout handoff, Malaysian address validation | ✅ Complete |
 | 2c | Admin product management screen (add/edit/publish/pricing) | ✅ Complete (persistence decision pending) |
-| 2d | Payment provider integration (FPX / cards / DuitNow), order records | ⬜ Next — blocked on owner's merchant account |
+| 2d | Order records, server-side re-pricing, payment-provider boundary | ✅ Complete |
+| 2e | Online payment provider (FPX / cards / DuitNow) | ⬜ Deferred by the owner — COD for now, approval required |
+| 3a | Supabase persistence: catalogue edits and orders stored permanently, RLS | ✅ Complete |
 | 3 | Multilingual completion for commerce surfaces (cart, checkout, forms, admin) | ⬜ Blocked by Phase 2 |
 | 4 | Nationwide location SEO: Malaysia geo database, location pages, internal linking | ⬜ Not started |
 | 5 | Content marketing, AEO/GEO/LLMO assets, articles | ⬜ Deferred until Phase 2–4 |
-| 6 | Conversion and leads: WhatsApp, live chat, enquiry flows, analytics | ⬜ Partially — contact route exists, channels pending |
+| 2f | Cash on Delivery, payment/order status tracking, WhatsApp + email contact | ✅ Complete |
+| 6 | Conversion and leads: WhatsApp, live chat, enquiry flows, analytics | 🔶 WhatsApp and email live; live chat and analytics not started |
 | 7 | Full QA, performance, launch | ⬜ Not started |
 
 ---
@@ -255,59 +258,443 @@ reading generated HTML and the compiled CSS rather than screenshots. This
 should be eyeballed on a real device in the next session.
 
 ---
+## Phase 2d — orders, server-side pricing and the payment boundary (completed)
+
+Payment itself is still blocked on a merchant account, so this phase built the
+three parts that are not: real order records, pricing that the browser cannot
+tamper with, and a provider boundary the eventual integration drops into.
+
+### Server-side pricing is the authority (`src/lib/order-pricing.ts`)
+
+The cart in the browser is a convenience. Before an order is recorded, every
+line is looked up again against the catalogue and priced from source.
+
+- **The client's total is never trusted.** It is compared with the server's and
+  a difference is a *refusal*, not an adjustment — silently correcting it would
+  mean charging a figure the customer never saw. A hidden field claiming `1`
+  sen produces "the order total has changed", not a discount.
+- Every rule the cart enforces is re-checked here, because a client-side check
+  that matters commercially is only a suggestion: product exists, is published,
+  variant still exists, product still has a fixed price, stock covers the
+  quantity.
+- **One bad line fails the whole order.** Partial acceptance would charge for
+  something the customer did not fully agree to.
+- Totals are integer sen throughout, so there is no floating-point drift to
+  round away.
+
+### Order records (`src/lib/orders.ts`, `src/lib/order-repository.ts`)
+
+- An order **copies** names, SKUs and prices at the moment of ordering rather
+  than referencing the product. A later price change must not rewrite history.
+- References are `ELV-XXXXXX` from an alphabet with no `0/O` or `1/I`, so they
+  can be read over the phone. Not a security token — it identifies an order, it
+  does not authorise access to one.
+- Shipping is stored as `null`, not `0`, because it is quoted after the order.
+  A zero would be a false claim.
+- Persistence sits behind the same kind of interface as the catalogue:
+  `MemoryOrderRepository` is the default and carries `durable = false`. It is
+  real but not permanent, and the confirmation screen and admin both say so.
+
+### Payment boundary (`src/lib/payments/provider.ts`)
+
+- `PaymentProvider` defines `createSession` / `verifyCallback`, and
+  `UnconfiguredPaymentProvider` is the only implementation. Every method throws
+  rather than returning a plausible stub — a stub returning a fake redirect URL
+  is exactly the thing that reaches production and takes money it cannot
+  account for.
+- `paymentGuards` encodes the rules every future provider must satisfy: a paid
+  amount must match the total **exactly** (no tolerance, no partial), and only a
+  `pending-payment` order may become paid. Both are tested.
+- There is **no code path that marks an order paid** except a verified
+  callback. Nothing in the admin offers a manual "mark paid" button.
+
+### Checkout (`src/app/[locale]/checkout/actions.ts`)
+
+The order of operations is the design: validate the address on the server, check
+the request shape, re-price from the catalogue, refuse a total disagreement,
+then record the order as `pending-payment`. If storage fails, the customer is
+told the order could not be recorded and that nothing was been charged — the
+one failure mode that matters is reporting success for an order nobody stored.
+
+The confirmation screen shows the reference, states plainly that payment is not
+live, and warns when the record is not durable.
+
+### Owner visibility (`/admin/orders`)
+
+An order nobody can read is not much of a record. The owner sees every placed
+order with reference, date, customer, destination, item count, total and status.
+Read-only by design: status changes belong to a provider callback, not a button.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| Tampered client total (1 sen) | ✅ refused, no order stored |
+| Inflated client total | ✅ refused |
+| Missing client total | ✅ prices server-side at the real figure |
+| Unpriced product cannot be ordered | ✅ `not-priced` |
+| Unpublished product refused | ✅ |
+| Quantity above stock refused | ✅ `insufficient-stock` |
+| One bad line fails the whole order | ✅ |
+| Blank name/phone/email/address/postcode/city/state | ✅ refused, field-level |
+| Non-Malaysian state refused | ✅ |
+| Storage failure | ✅ refuses, says nothing was charged |
+| Stored order status | ✅ always `pending-payment`, never paid |
+| Payment amount mismatch (partial/over/zero/fractional) | ✅ refused |
+| Re-paying a paid order | ✅ refused |
+| Unconfigured provider | ✅ refuses session creation and callbacks |
+| `/admin/orders` unauthenticated | ✅ 307 → login |
+| `/admin/orders` authenticated | ✅ 200, honest about in-memory storage |
+| Checkout pages (en/ms/zh) | ✅ 200 |
+| `npm test` | ✅ 536 assertions across 13 suites |
+| `npm run typecheck` / `npm run lint` / `npm run build` | ✅ clean, 87 pages |
+
+**Note on verification:** the server action is covered by 53 direct assertions
+calling it with real `FormData`, and the checkout UI by a further 37 rendered
+assertions. Driving the RSC wire format by hand over `curl` proved to be
+framework-internal; the action was confirmed reachable and executing over HTTP,
+but its logic is verified by calling it directly rather than through a
+reconstructed payload.
+
+---
+## Phase 3a — Supabase persistence (completed)
+
+Catalogue edits and orders now persist in Supabase Postgres, behind the
+interfaces built in earlier phases. The choice of Supabase over Neon/Vercel
+Postgres was the owner's, for the bundled Auth and Storage later.
+
+**What this phase is not:** it does not touch authentication (the single-owner
+password from Phase 2c still works) and it does not touch payments
+(`features.payments` is still `false`). Both were explicit scope decisions.
+
+### Schema (`supabase/migrations/0001_init.sql`)
+
+- **`products`**: the full trilingual `Product` document in `jsonb`, with
+  `status`, `category`, `sort_order` and the three slugs lifted into indexed
+  columns for filtering and page lookup. Not fully normalised on purpose — the
+  shape is deeply nested and translated, and exploding it would create a dozen
+  joins per page for no query anyone makes.
+- **`orders`**: customer and lines stored as immutable `jsonb` copies taken at
+  ordering time, because an order records what was agreed, not what is true now.
+- **Constraints that encode business rules in the database**, so a bug cannot
+  bypass them:
+  - `orders_paid_requires_payment` — a `paid` order must carry a payment
+    record, and an unpaid order must not.
+  - `orders_total_matches_subtotal` — `total = subtotal + shipping`.
+  - status and locale confined to known values; unique slug per language.
+
+### Security
+
+RLS is enabled on both tables with **no policies and no grants** for `anon` or
+`authenticated`. The application reaches Postgres only from the server (server
+components and server actions) using a role that bypasses RLS, so the correct
+policy for the public key is denial. This means customer names, phone numbers
+and addresses are not readable with the public key, and `npm run db:verify`
+proves it by actually calling the REST API with the anon key.
+
+### Storefront reads the live catalogue
+
+Seven modules previously imported `@/content/products` directly. Product pages,
+category pages, the sitemap and the cart now read through
+`src/lib/catalogue/storefront.ts`. Without this, a save in the admin would have
+persisted and changed nothing the customer could see — the exact failure this
+project has refused from the start.
+
+- Product pages: `dynamicParams = true` and `revalidate = 60`, so a product
+  created in the admin resolves without a redeploy and a price edit appears
+  within a minute.
+- Saving in the admin revalidates the affected product URLs, category pages,
+  the storefront layout and the sitemap.
+- The language switcher's slug translations are synced from the live catalogue,
+  so an admin-created product translates across languages instead of falling
+  back to the homepage.
+
+### Two different failure policies, deliberately
+
+| Surface | Database unreachable | Why |
+| --- | --- | --- |
+| Storefront | Serve the compiled seed, log a warning | A shop that stays up during a blip beats an error page |
+| Checkout | **Refuse**, "nothing has been ordered or charged" | An order must never be priced from stale data |
+
+The checkout path was changed during this phase: an unhandled database error
+previously produced a 500. It now returns a sentence the customer can act on,
+and a test asserts no order is written in that case.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| Product row ↔ document round trip (all 7) | ✅ lossless, JSON-identical |
+| Lifted columns always match the document | ✅ |
+| Document wins over a tampered lifted column | ✅ |
+| Order row ↔ order round trip | ✅ lossless, timestamps preserved |
+| Unknown order status never reads as paid | ✅ falls back to `pending-payment` |
+| Migration enables RLS on both tables | ✅ asserted from the SQL file |
+| Migration defines no permissive policy | ✅ asserted from the SQL file |
+| Anon/authenticated grants revoked | ✅ |
+| Payment and total constraints present | ✅ |
+| Writes: `on conflict do nothing`, scoped updates | ✅ asserted from source |
+| Price lookup is parameterised, never interpolated | ✅ |
+| No database configured | ✅ site, products, cart, checkout all 200 |
+| Database unreachable, storefront | ✅ seed served, requests 200 |
+| Database unreachable, checkout | ✅ refused with a clear message, no order |
+| `npm test` | ✅ 657 assertions across 14 suites |
+| `npm run typecheck` / `lint` / `build` | ✅ clean, 87 pages |
+
+**Not verifiable in this environment:** no Supabase project exists here, so the
+SQL was not executed against a live server, and the repository classes were not
+exercised against real Postgres. The mapping, constraints, security posture and
+query shapes are covered by tests; `npm run db:verify` is the step that closes
+the gap against the real project, and it is written to fail loudly.
+
+---
+
+## Phase 3b — product photo uploads (completed)
+
+The upload path exists and every check is real. What it cannot do here is
+connect to a bucket, because none exists in this environment.
+
+### Rules (`src/lib/images/rules.ts`)
+
+Pure functions, so they can be tested exhaustively without a bucket or browser:
+
+| Rule | Value | Why |
+| --- | --- | --- |
+| Maximum size | 8 MB | A phone photo is 2–4 MB; 8 MB covers it without allowing a 2 GB file |
+| Maximum per product | 6 | Enough for angles and detail, no endless gallery |
+| Allowed types | JPEG, PNG, WebP, AVIF | All four render everywhere the shop is likely to appear |
+| SVG | **Refused** | An SVG is a document that can carry JavaScript, served from this domain |
+| Type check | **Magic bytes** | The browser's `type` and the filename are claims; only the bytes are evidence |
+| Storage path | slug(product id) + random suffix + verified extension | The original filename never reaches storage, so a hostile one cannot influence the path |
+
+`validateImageUpload` runs its checks in a fixed order — empty, size, declared
+type, real bytes, mismatch — so the message the owner sees names the first real
+problem rather than a symptom of it.
+
+### Storage (`src/lib/images/storage.ts`)
+
+An interface with one implementation, `SupabaseImageStorage`, calling the
+Storage REST API directly. No new dependency. Writes use `x-upsert: false`, so
+an upload can never silently overwrite another photo. Deletes treat a 404 as
+success, because the desired end state — no file at that path — is already true.
+
+Configuration requires **both** `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+The anon key is deliberately rejected: it has no write permission, so accepting
+it would produce a confusing failure later instead of a clear refusal now.
+
+### Failure behaviour
+
+| Situation | What happens |
+| --- | --- |
+| Storage not configured | Upload refused, message names the missing variables |
+| File empty / too large | Refused before the body is buffered |
+| SVG, GIF, PDF, anything else | Refused, with the four accepted formats named |
+| Bytes disagree with the declared type | Refused as a mismatch |
+| Seven photos on one product | Refused, counted from the **stored** record, not the browser |
+| Not logged in | Refused before any file is read |
+| Existing repository photos | Unaffected — `/images/…` paths are not touched |
+
+### What the form may and may not attach (`src/app/admin/actions.ts`)
+
+The editor submits its image list so alt-text edits and removals survive a save.
+An entry is accepted only if it was **already on that product** or points at an
+object in **our own bucket**. A crafted request therefore cannot attach an
+arbitrary URL, and a photo has to have been genuinely uploaded first.
+
+### Rendering
+
+`next.config.ts` derives `images.remotePatterns` from `SUPABASE_URL`, scoped to
+`/storage/v1/object/public/**` and https only. Without it `next/image` refuses
+the host and every uploaded photo renders broken — a failure that would only
+appear after the owner had already uploaded something.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| Magic bytes for all four formats | ✅ |
+| Type/declared mismatch, SVG, PHP, ZIP | ✅ all refused |
+| Empty file, over-limit, exactly-at-limit | ✅ |
+| Path traversal via product id, suffix, absolute path | ✅ neutralised |
+| Foreign host, lookalike host, data URL | ✅ refused |
+| `next/image` pattern derivation and malformed URL | ✅ |
+| Image cap and add/remove immutability | ✅ |
+| Upload without configuration | ✅ refused, message names the variable |
+| Media panel: empty, populated, full, read-only | ✅ |
+| `tests/images.test.ts` | ✅ 85 assertions |
+| `tests/admin-media.test.tsx` | ✅ 31 assertions |
+| `npm test` | ✅ 773 assertions across 15 suites |
+| `npm run verify` | ✅ clean, 87 pages |
+| Storefront with no storage configured | ✅ pages 200, uploads refused |
+
+**Not verifiable here:** no bucket exists, so no file was actually stored. Every
+rule, refusal, path and render path is covered by tests; the first real upload
+is the step that closes it, and `npm run db:verify` now checks the bucket's
+existence, its public-read flag, its 8 MB limit and the absence of public write
+policies.
+
+---
+
+## Phase 2f — Cash on Delivery and contact channels (completed)
+
+The shop takes orders and is paid in cash at the door. No gateway is involved,
+and none will be until the owner approves one.
+
+### Payment is a method, not an absence
+
+`src/lib/payments/methods.ts` is the registry. Cash on Delivery is an entry with
+a label in three languages, a description, a settlement kind (`on-delivery`) and
+`requiresOnlinePayment: false`.
+
+This mattered more than it looked. The previous build said "payment is not
+connected" everywhere, which described a missing gateway rather than a working
+arrangement — and would have left the shop apologising for a payment method it
+actually has. The copy now states the arrangement: you pay the courier when the
+parcel arrives.
+
+Adding an online method later is: append to the registry, allow the id in the
+migration's check constraint, implement `PaymentProvider`, flip
+`features.payments`. Checkout renders whatever the registry offers, so the form
+does not change.
+
+### Two status fields, deliberately
+
+| Field | Values | Question it answers |
+| --- | --- | --- |
+| `status` | `pending-payment`, `paid`, `expired`, `cancelled` | Where is this order in its life? |
+| `paymentStatus` | `on-delivery`, `unpaid`, `paid`, `not-required` | Have we been paid? |
+| `paymentMethodId` | `cod` | How is the customer paying? |
+
+One field would conflate "delivered but the customer had no cash" (money owed)
+with "cancelled before dispatch" (nothing owed). Both are "not paid", with
+opposite accounting consequences.
+
+A newly placed COD order is `pending-payment` / `on-delivery`. **Not** `paid`:
+nothing has arrived.
+
+### Settling is a deliberate act (`src/lib/order-settlement.ts`)
+
+Separated from the server action so the rules can be tested without a request
+and audited in one function.
+
+| Rule | Why |
+| --- | --- |
+| Only `pending-payment` can be settled | A duplicate cannot double-count the money or revive a cancelled order |
+| The amount is the order's own total | A form-supplied amount would let a RM 498 order be settled in full for RM 1 |
+| An order with no total cannot be settled | Writing 0 claims the customer owes nothing — worse than refusing |
+| A paid order cannot be cancelled | Money changed hands; erasing it would misstate the takings |
+| Cancelling sets `not-required` | The order is over and nothing is owed |
+
+The database re-checks all of it: `orders_paid_status_agrees` refuses a row
+whose `status` says paid while `payment_status` disagrees.
+
+### Contact channels
+
+WhatsApp and email, read from `NEXT_PUBLIC_WHATSAPP_NUMBER` and
+`NEXT_PUBLIC_CONTACT_EMAIL`, so publishing them is config rather than code.
+
+| Placement | Detail |
+| --- | --- |
+| Product pages | Under the buy controls, product name prefilled into the message |
+| Contact page | Above the prose, as the page's main action |
+| Category pages | Main CTA links straight to WhatsApp |
+| Header | WhatsApp button on desktop; both in the mobile drawer |
+| Footer | Both, when configured |
+
+Unconfigured, no link is rendered at all — no placeholder number, no dead
+button. The contact page's old "channels being finalised" notice is now gated on
+whether a channel exists, so it cannot contradict working buttons.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| A COD order is recorded with method and `on-delivery` | ✅ |
+| An unknown or missing method falls back to COD, never stored | ✅ |
+| Settling records the order total, not the form's figure | ✅ |
+| Settling twice is refused and changes nothing | ✅ |
+| An unpriced order cannot be settled | ✅ |
+| A cancelled order cannot be marked paid | ✅ |
+| A paid order cannot be cancelled | ✅ |
+| No provider is live; sessions and callbacks refused | ✅ |
+| No gateway SDK in the code, the dependencies or the env | ✅ asserted from source |
+| Contact buttons render when configured, nothing when not | ✅ |
+| Contact page notice disappears once a channel is set | ✅ |
+| `tests/cod.test.ts` / `tests/contact-channels.test.tsx` | ✅ 93 + 53 assertions |
+| `npm test` | ✅ 17 suites, 933 assertions, 0 failed |
+| `npm run verify` | ✅ clean, 87 pages |
+| Live build with channels configured | ✅ buttons on product, contact, category, header |
+
+**Not verifiable here:** no Supabase project, so migration `0003_cod.sql` was
+not run against a live server. `npm run db:verify` now checks the payment
+columns, the values actually stored, and the presence of both payment
+constraints.
+
+---
 
 ## Known gaps and deliberate deferrals
 
-1. **Catalogue edits do not persist yet.** The content is compiled into the
-   build and no database is connected, so the admin is read-only by design. The
-   repository interface and the UI are finished; connecting a database is the
-   remaining step (see "Open question").
-2. **No payments or orders.** Phase 2d. Payment providers (FPX/cards/DuitNow)
-   need owner-supplied merchant accounts. Nothing claims a payment path is live.
-3. **Images cannot be uploaded from the admin.** A product photo can only be
-   added in the repository, so publishing requires one to exist already. Upload
-   needs a storage bucket and is deliberately not faked.
-4. **The login rate limit is per instance and in memory.** It resets on
+1. **Persistence needs the owner to create the Supabase project.** The code,
+   schema, RLS policies and seed/verify scripts are complete and tested, but no
+   project exists yet, so the site still runs on the compiled catalogue. Steps
+   are in `docs/SUPABASE-SETUP.md`.
+2. **No online payment.** Cash on Delivery only, by the owner's decision. Orders
+   are recorded with a payment method and a payment status, and the owner settles
+   them as cash arrives. Phase 2e (FPX/cards/DuitNow) stays deferred until the
+   owner approves a merchant account — the structure is ready, the integration is
+   deliberately not started.
+3. **Orders are durable only once Supabase is connected.** Without a database
+   they live in server memory and are lost on restart, which the confirmation
+   screen and admin both state. With `SUPABASE_DB_URL` set they persist.
+4. **Photo uploads need a storage bucket.** The upload code, rules, panel and
+   bucket SQL are complete and tested, but no bucket exists yet, so uploads are
+   refused with a message naming the missing variables. Adding one takes two
+   minutes: `docs/SUPABASE-SETUP.md` step 2b. Until then the seven products keep
+   their repository photos and publishing still requires one to exist.
+5. **The login rate limit is per instance and in memory.** It resets on
    redeploy and is not shared between serverless instances. Adequate for a
    single owner; documented rather than overbuilt.
-5. **WhatsApp, phone and email are unset** in `src/lib/site.ts`. The UI detects
-   this and renders a "being finalised" notice instead of a dead link. Nothing
-   invented.
-6. **Location pages not built.** The geo database and page architecture are
+6. **WhatsApp and email need configuring.** Both are wired end to end and appear
+   the moment `NEXT_PUBLIC_WHATSAPP_NUMBER` and `NEXT_PUBLIC_CONTACT_EMAIL` are
+   set; until then the UI renders no link rather than a placeholder. Phone,
+   Instagram, Facebook and TikTok remain unset.
+7. **Location pages not built.** The geo database and page architecture are
    Phase 4; building them before products exist would produce thin pages.
-7. **OG image** currently reuses the hero photograph; a dedicated 1200×630
+8. **OG image** currently reuses the hero photograph; a dedicated 1200×630
    branded banner is pending (image generation limit reached this turn).
-8. **No analytics or consent banner yet.** Phase 6.
-9. **No Vietnamese/other locales** — intentionally exactly three.
+9. **No analytics or consent banner yet.** Phase 6.
+10. **No Vietnamese/other locales** — intentionally exactly three.
 
 ---
 
-## Open question — catalogue persistence
+## Open question — hosting plan and backups
 
-The admin UI, validation and authorisation are complete and verified. What is
-**not** decided is where saved products live. Two honest options:
+The persistence question is settled: Supabase, with RLS, behind the interfaces
+from Phases 2c and 2d. Two operational decisions remain, and both are the
+owner's because they involve spending money:
 
-| Option | What it means | Cost | Trade-off |
-| --- | --- | --- | --- |
-| **A. Keep compiled content** | Owner edits `src/content/products.ts`, commits, redeploys. The `/admin` screen stays a review-and-validate tool. | Free | Every price change is a deploy; no non-technical editing. |
-| **B. Connect Vercel Postgres / Neon** | Implement `PostgresProductRepository`, set `DATABASE_URL`. The admin becomes a real CMS. | ~$0–20/month at this scale | A managed database to back up and maintain. |
+| Decision | Free | Pro ($25/month) |
+| --- | --- | --- |
+| Supabase plan | 500 MB, **pauses after 7 days idle**, **no backups** | 8 GB, never pauses, daily backups for 7 days |
 
-Nothing further is blocked by this except the write path itself: the storefront,
-cart and checkout read through the same interface, so either choice is a
-one-file change. **Recommendation: option B**, because the whole point of the
-Phase 2c screen is to let the owner change a price without a developer. This
-needs the owner's decision on hosting cost.
-
----
+Free is fine for building and testing. For a shop taking real orders, the
+7-day pause and the absence of backups are both unacceptable, so **Pro is the
+recommendation before launch**. Nothing in the code depends on the plan.
 
 ## Next task
 
-**Phase 2d — payment integration.** Blocked until the owner supplies a merchant
-account (FPX / cards / DuitNow). Until then `/checkout` deliberately ends at an
-honest "payment not yet live" state rather than a fake success page.
+**Phase 2e — payment provider integration.** Blocked until the owner supplies a
+merchant account (FPX / cards / DuitNow) and sandbox credentials.
 
-Work that can proceed without a merchant account:
-1. Order records and an order-number scheme, so a paid order has somewhere to go.
-2. Server-side re-pricing at checkout (never trust a client total).
-3. A provider-agnostic payment interface, mirroring the repository pattern, so
-   the provider is a single implementation once credentials exist.
+Everything around it is now in place, so the remaining work is bounded:
+
+1. Implement `PaymentProvider` against the provider's sandbox: session creation,
+   redirect, and a signature-verified callback.
+2. Verify the callback against `paymentGuards` — exact amount, and only a
+   `pending-payment` order may transition.
+3. Flip `features.payments` in the same commit that the sandbox test passes,
+   never before.
+
+**Before launch:** create the Supabase project (`docs/SUPABASE-SETUP.md`), run
+`npm run db:seed`, and confirm `npm run db:verify` passes. Then move to the Pro
+plan so the database does not pause and backups exist.

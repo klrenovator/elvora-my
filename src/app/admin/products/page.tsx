@@ -63,6 +63,12 @@ export default async function AdminProductsPage({
           >
             New product
           </Link>
+          <Link
+            href="/admin/orders"
+            className="inline-flex h-10 items-center border border-[color:var(--color-line-strong)] px-5 text-[0.75rem] tracking-[0.14em] uppercase text-[color:var(--color-ink-strong)]"
+          >
+            Orders
+          </Link>
           <form action="/admin/logout" method="get">
             <button
               type="submit"

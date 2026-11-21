@@ -23,7 +23,8 @@ falling back to English.
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm test            # 364 assertions across 9 suites
+npm test            # 933 assertions across 17 suites
+npm run verify      # typecheck + lint + tests + build, in one command
 npm run build       # production build, all routes pre-rendered
 ```
 
@@ -33,11 +34,12 @@ npm run build       # production build, all routes pre-rendered
 src/
   app/
     [locale]/
+      checkout/actions.ts   records an order after re-pricing it server-side
       layout.tsx            <html lang>, header, footer, Organization + WebSite JSON-LD
       page.tsx              homepage (hero, collections, grades, trust, FAQ, CTA)
       [slug]/page.tsx       categories + editorial pages (statically generated)
       [slug]/[product]/     product pages, catalog segment localized per language
-    admin/                owner-only product management (outside the locale tree)
+    admin/                owner-only product and order management (outside locales)
     sitemap.ts              multilingual sitemap with hreflang alternates
     robots.ts               robots.txt
     llms.txt/route.ts       plain-text summary for AI assistants
@@ -57,6 +59,10 @@ src/
     validate-catalogue.ts   build-time guard against bad product data
     features.ts             flags for capabilities not yet implemented
     site.ts                 brand config and contact channels (nulls = not supplied)
+    orders.ts               order records, references, request validation
+    order-pricing.ts        server-side re-pricing (the authority on totals)
+    order-repository.ts     order persistence boundary (memory today)
+    payments/provider.ts    payment provider boundary + payment guards
     admin/                  auth, session cookies, product form rules
     catalogue/repository.ts the persistence boundary (static today, database-ready)
   components/admin/         product editor
@@ -91,15 +97,76 @@ directly:
 - Quantities are clamped to real stock; delisted products are flagged and
   contribute nothing to the subtotal.
 
-### Payment status
+### Orders and payment status
 
-Payment is **not connected**. `features.payments` is `false`, so checkout
-collects and validates the delivery address, then produces a copyable order
-summary — it does not take payment or submit an order. The page says this
-plainly rather than implying a completed purchase.
+Checkout **records a real order**: it validates the address on the server,
+re-prices every line from the catalogue, and stores the result with a reference
+the customer can quote. The confirmation screen shows that reference.
 
-To go live, connect a Malaysian provider (FPX, cards, DuitNow), then flip
-`features.payments` in `src/lib/features.ts` in the same commit.
+**Payment is Cash on Delivery.** The customer pays the courier in cash when the
+order arrives, so nothing is taken at checkout. An order is recorded as
+`status: pending-payment` with `paymentStatus: on-delivery` — the honest reading:
+the order is real, the money has not arrived yet.
+
+| Field | Meaning |
+| --- | --- |
+| `status` | The order's own lifecycle: `pending-payment` → `paid`, or `cancelled` / `expired` |
+| `paymentStatus` | Whether money arrived: `on-delivery`, `unpaid`, `paid`, `not-required` |
+| `paymentMethodId` | How the customer pays. `cod` today |
+
+Two fields rather than one because they answer different questions. "Delivered
+but the customer had no cash" and "cancelled before dispatch" are both an order
+that is not `paid`, but one is money owed to you and the other is nothing. An
+owner reconciling a cash-up needs to tell those apart.
+
+**Settling is deliberate.** An order becomes `paid` only when the owner presses
+**Mark paid** in `/admin/orders`, once the cash is actually in hand. The amount
+recorded is the order's own total, read from the stored order — never a figure
+typed into a form, which is what stops a RM 498 order being settled for RM 1. An
+order with no price cannot be settled, because there is no amount to record and
+writing zero would claim nothing is owed.
+
+A paid order cannot be cancelled. Money changed hands, and erasing that record
+would misstate the takings; a refund is a separate, real event.
+
+**The client's total is never trusted.** The browser sends what it thinks the
+order costs; the server re-prices from the catalogue and *refuses* if the two
+disagree. Silently correcting it would mean charging a figure the customer
+never saw, so the customer is sent back to review their cart instead.
+
+Orders are stored in server memory (`MemoryOrderRepository`) — real, but lost on
+restart, and both the confirmation screen and `/admin/orders` say so. Swapping in
+a database is one file, the same as the catalogue.
+
+### Adding online payment later
+
+Not started, and it will not start without the owner's explicit approval and a
+merchant account. The structure is ready for it, which is the point of doing the
+work now:
+
+1. Add a method to `paymentMethods` in `src/lib/payments/methods.ts`, with
+   `requiresOnlinePayment: true`. Checkout renders whatever is in that list, so
+   the form does not change.
+2. Add its id to the `orders_payment_method_known` check in a new migration, in
+   the same migration that implements it, so the database and the code cannot
+   disagree.
+3. Implement `PaymentProvider` against the provider's sandbox, then flip
+   `features.payments` in `src/lib/features.ts` **in the same commit that the
+   sandbox test passes** — never before.
+
+`features.payments` refers only to gateways. It is `false` today and the shop is
+still paid — in cash, on delivery.
+
+Two rules are already encoded and tested in `paymentGuards`:
+
+1. A paid amount must match the order total **exactly**. Partial payments,
+   overpayments and currency mix-ups are refused and reconciled by hand.
+2. Only a `pending-payment` order may become paid. A duplicate or conflicting
+   callback must not double-charge or revive a cancelled order.
+
+Even after a gateway exists, an order may only become paid through a verified
+callback or the owner's explicit cash-received action. There is no path that
+infers payment from a status field.
 
 ## Product pages
 
@@ -160,6 +227,34 @@ These are enforced in structure, not just documented:
 - **No delivery guarantees.** Shipping copy explains how charges are calculated
   at checkout and explicitly declines to promise transit times.
 
+## Contact channels
+
+The shop's two inquiry routes are **WhatsApp** and **email**, and they are shown
+wherever a customer might hesitate:
+
+| Where | What |
+| --- | --- |
+| Product pages | Buttons under the buy controls, with the product name prefilled into the WhatsApp message |
+| Contact page | Both channels, above the prose |
+| Category pages | The main call to action links straight to WhatsApp |
+| Header | A WhatsApp button on desktop; both channels in the mobile drawer |
+| Footer | Both, whenever they are configured |
+
+Both values come from the environment, so publishing them is a config change
+rather than a code change:
+
+```bash
+NEXT_PUBLIC_WHATSAPP_NUMBER=012-345 6789   # or +60 12-345 6789
+NEXT_PUBLIC_CONTACT_EMAIL=hello@elvora.my
+```
+
+Unset, the site says the details are being finalised and renders **no** link —
+never a placeholder number or a button that goes nowhere. A local number and an
+international one both normalise to the same `wa.me` link.
+
+> On Vercel, `NEXT_PUBLIC_*` values are baked in at build time. Setting them in
+> the dashboard requires a redeploy before they appear.
+
 ## Replacing the temporary images
 
 All placeholder artwork is disclosed to visitors as an illustration, on the
@@ -184,6 +279,28 @@ Keep the aspect ratios (4:5 for categories, 3:2 for the hero, 16:10 for the
 macros). When original photography lands, remove the placeholder badges —
 search for `placeholderNote` and `placeholderDisclosure`.
 
+### Uploading real product photos
+
+Once Supabase Storage is configured (see
+[docs/SUPABASE-SETUP.md](./docs/SUPABASE-SETUP.md), step 2b), each product's
+editor has a **Photos** panel. Choose a file and it uploads immediately; save
+the product to attach it.
+
+What is enforced, by the server and not the browser:
+
+- **8 MB maximum**, at most **6 photos** per product.
+- **JPEG, PNG, WebP or AVIF**, decided by the file's actual header bytes. A file
+  claiming to be a JPEG but containing something else is refused.
+- **SVG is refused.** It can carry script and would be served from this domain.
+- The stored filename is generated from the product plus a random suffix. The
+  original filename is never used, so a hostile one cannot influence the path.
+- English alt text is required before publishing, because it is what a
+  screen-reader user and a visitor on a broken connection depend on.
+
+If storage is **not** configured, uploads are refused with a message naming the
+missing variables. Nothing claims to have saved. Removing a photo deletes the
+stored object too, so files do not quietly accumulate in the bucket.
+
 ## Brand identity
 
 The wordmark in `src/components/logo.tsx` is intentionally temporary and
@@ -191,6 +308,41 @@ typographic. To install the final logo, replace the markup inside that one
 component and update the colour tokens in `src/app/globals.css` (`@theme`
 block). No page-level markup references brand colours directly for anything
 that would need to change.
+
+## Database (Supabase)
+
+Catalogue edits and customer orders are stored in Supabase Postgres when
+`SUPABASE_DB_URL` is set. Setup: [docs/SUPABASE-SETUP.md](./docs/SUPABASE-SETUP.md).
+
+```bash
+npm run db:seed     # copy the compiled 7 products into the database (insert-only)
+npm run db:verify   # check RLS, constraints, and that the public key is denied
+```
+
+**Without a database the site still works.** It serves the compiled catalogue
+and keeps orders in memory, exactly as in earlier phases. That is a supported
+state, not a broken one — a fresh clone and any preview deploy run this way.
+
+### Two data sources, one rule
+
+- **Storefront** reads the live catalogue and *falls back* to the compiled seed
+  if the database is unreachable. A shop that stays up during a database blip is
+  worth more than one that shows an error page.
+- **Checkout** never falls back. It prices against the live catalogue and
+  **refuses** if it cannot read it. An order must never be priced from stale
+  data, and the customer is told nothing was charged.
+
+Because the storefront cache is 60 seconds, a price edit can take up to a minute
+to appear. If a customer's cart holds the old price, checkout refuses and asks
+them to review — it never charges the wrong total.
+
+### Security posture
+
+Row Level Security is enabled on both tables with **no policies at all**. The
+application connects only from the server with a role that bypasses RLS, so the
+correct policy for the public key is "deny everything". Customer names, phone
+numbers and addresses are not reachable with the anon key, and
+`npm run db:verify` proves it rather than asserting it.
 
 ## Admin
 
@@ -224,11 +376,12 @@ missing. There is no default password and no fallback, by design.
 edits a product in all three languages with a separate SEO block. Authentication,
 validation and the editing UI are complete and tested.
 
-**Saves do not persist yet.** The catalogue is still compiled into the build, so
-the repository refuses writes rather than reporting a save that did not happen,
-and the screen says so plainly. Every read and write goes through a
-`ProductRepository` interface (`src/lib/catalogue/repository.ts`), so connecting
-a database is one file — see "Open question" in [PROGRESS.md](./PROGRESS.md).
+**Saving persists once Supabase is connected** (see "Database" above). Without
+it the catalogue is compiled into the build, so the repository refuses writes
+rather than reporting a save that did not happen, and the screen says so
+plainly. Every read and write goes through a `ProductRepository` interface
+(`src/lib/catalogue/repository.ts`), so the whole difference is one environment
+variable.
 
 ### Security notes
 
@@ -247,8 +400,17 @@ a database is one file — see "Open question" in [PROGRESS.md](./PROGRESS.md).
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | No | Canonical origin used in metadata, sitemap and hreflang. Defaults to `https://elvora.my`. |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | For WhatsApp | Inquiry number. Local or international format. Unset means no WhatsApp button at all. |
+| `NEXT_PUBLIC_CONTACT_EMAIL` | For email | Inquiry address, shown as text and as a `mailto:` link. |
 | `ADMIN_PASSWORD_HASH` | For admin | Password hash from `npm run admin:hash`. Without it the admin refuses all logins. |
 | `ADMIN_SESSION_SECRET` | For admin | Signs session cookies. Must be 32+ characters. |
+| `SUPABASE_DB_URL` | Optional | Supabase **pooler** connection string (port 6543). Enables persistent catalogue and orders. Without it the site runs on the compiled catalogue. |
+| `SUPABASE_URL` | For photos | Project URL. Also used by `npm run db:verify` and to allowlist the image host. |
+| `SUPABASE_ANON_KEY` | Optional | Public anon key, used only to prove public access is denied. |
+| `SUPABASE_SERVICE_ROLE_KEY` | For photos | **Secret.** Server-only key that uploads to Storage. Bypasses database security — never expose it to a browser. |
+
+Full setup, including creating the tables and verifying row-level security, is
+in [docs/SUPABASE-SETUP.md](./docs/SUPABASE-SETUP.md).
 
 The storefront needs none of these; only the admin area does.
 

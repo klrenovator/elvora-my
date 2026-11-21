@@ -7,14 +7,14 @@ import { getDictionary } from "@/lib/dictionary";
 import { pathFor } from "@/lib/routes";
 import { categoryById } from "@/content/categories";
 import {
-  productBySlug,
-  productsByCategory,
-  relatedProducts,
-  visibleProducts,
-} from "@/content/products";
+  catalogueForStorefront,
+  productForSlug,
+  relatedFor,
+} from "@/lib/catalogue/storefront";
 import { assertCatalogueValid } from "@/lib/validate-catalogue";
 import { Breadcrumbs, categoryRoutes } from "@/components/category-cards";
 import { FaqAccordion } from "@/components/faq-accordion";
+import { ContactChannels } from "@/components/contact-channels";
 import { ProductPurchase } from "@/components/product-purchase";
 import { ProductCard } from "@/components/product-card";
 import { Container, Rule } from "@/components/ui";
@@ -28,16 +28,34 @@ import {
 } from "@/lib/seo";
 import { resolvePrice } from "@/lib/pricing";
 
-export const dynamicParams = false;
+/**
+ * Products created in the admin must be reachable without a redeploy, so
+ * unknown slugs are resolved on demand rather than 404-ing until the next
+ * build. The price of that is a request-time read, which is cached below.
+ */
+export const dynamicParams = true;
+
+/**
+ * Serve a cached page that refreshes at most once a minute.
+ *
+ * A price edit appears within a minute without a redeploy, and normal traffic
+ * is served from cache. Checkout never relies on this cache: it re-prices from
+ * the same database and refuses on disagreement, so a page at most 60 seconds
+ * stale can produce a "please review your cart", not a wrong charge.
+ */
+export const revalidate = 60;
 
 /** Stated once here; must stay in step with the "product" route pattern. */
 const catalogs: Record<Locale, string> = { en: "products", ms: "produk", zh: "chan-pin" };
 
-export function generateStaticParams() {
+export async function generateStaticParams() {
   // Fail the build rather than publish a catalogue with invented prices,
-  // unknown categories or dangling variant references.
+  // unknown categories or dangling variant references. With a database
+  // configured this validates the compiled seed, which is the floor the
+  // database is seeded from.
   assertCatalogueValid();
-  return visibleProducts().flatMap((product) =>
+  const products = await catalogueForStorefront();
+  return products.flatMap((product) =>
     locales.map((locale) => ({
       locale,
       slug: catalogs[locale],
@@ -63,7 +81,7 @@ export async function generateMetadata({
   // than silently rendering the product under the wrong URL.
   if (slug !== catalogs[locale]) return {};
 
-  const product = productBySlug(locale, productSlug);
+  const product = await productForSlug(locale, productSlug);
   if (!product) return {};
 
   return buildMetadata({
@@ -85,14 +103,17 @@ export default async function ProductPage({
   if (!isLocale(raw)) notFound();
   const locale: Locale = raw;
   if (slug !== catalogs[locale]) notFound();
-  const product = productBySlug(locale, productSlug);
+  const product = await productForSlug(locale, productSlug);
   if (!product) notFound();
 
   const dict = getDictionary(locale);
   const price = resolvePrice(product, locale);
   const category = categoryById[product.category];
-  const related = relatedProducts(product);
-  const siblings = productsByCategory(product.category).filter((item) => item.id !== product.id);
+  const visible = await catalogueForStorefront();
+  const related = await relatedFor(product, visible);
+  const siblings = visible.filter(
+    (item) => item.category === product.category && item.id !== product.id,
+  );
   const faqs = product.faqs[locale];
   const path = pathFor("product", locale, { slug: product.slug[locale] });
   const gallery = product.images;
@@ -191,6 +212,17 @@ export default async function ProductPage({
               </div>
 
               <ProductPurchase product={product} locale={locale} price={price} />
+
+              {/* WhatsApp and email are the shop's inquiry channels, placed
+                  directly under the buy controls where a hesitant customer
+                  actually looks. The product name prefills the message. */}
+              <div className="mt-6">
+                <ContactChannels
+                  locale={locale}
+                  productName={product.name[locale]}
+                  variant="inline"
+                />
+              </div>
             </div>
           </div>
         </Container>
