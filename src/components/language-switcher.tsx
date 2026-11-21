@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { locales, localeName, localeShort, type Locale } from "@/i18n/config";
 import { switchPath } from "@/lib/routes";
+import { productSlugResolver } from "@/lib/slug-map";
 import { getDictionary } from "@/lib/dictionary";
 
 /**
@@ -53,7 +54,7 @@ export function LanguageSwitcher({
     code,
     label: localeName[code],
     short: localeShort[code],
-    href: code === locale ? pathname : switchPath(pathname, code),
+    href: code === locale ? pathname : switchPath(pathname, code, productSlugResolver),
     current: code === locale,
   }));
 

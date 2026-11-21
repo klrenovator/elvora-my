@@ -126,6 +126,34 @@ const en = {
     inThisCategory: "What this category covers",
   },
 
+  product: {
+    breadcrumb: "Products",
+    leatherType: "Leather",
+    fullGrain: "Full grain",
+    topGrain: "Top grain",
+    colour: "Colour",
+    size: "Size",
+    chooseColour: "Choose a colour",
+    chooseSize: "Choose a size",
+    specifications: "Specifications",
+    description: "Description",
+    faqTitle: "Questions about this piece",
+    relatedTitle: "You may also consider",
+    inSameCategory: "More in this category",
+    priceNote: "Prices are entered by us in Ringgit. Nothing is estimated.",
+    priceOnRequestBody:
+      "No price has been set for this item yet, so we have not published one. Send us a message and we will quote you directly.",
+    requestQuote: "Request a quote",
+    addToCart: "Add to cart",
+    unavailable: "Not orderable yet",
+    stockLeft: "in stock",
+    sku: "SKU",
+    share: "Share",
+    placeholderNotice:
+      "The image above is a temporary illustration, not a photograph of the finished product.",
+    dimensionPending: "Measuring in progress",
+  },
+
   footer: {
     shopHeading: "Shop",
     helpHeading: "Help",
@@ -273,6 +301,34 @@ const ms: Dictionary = {
     inThisCategory: "Apa yang diliputi kategori ini",
   },
 
+  product: {
+    breadcrumb: "Produk",
+    leatherType: "Kulit",
+    fullGrain: "Full grain",
+    topGrain: "Top grain",
+    colour: "Warna",
+    size: "Saiz",
+    chooseColour: "Pilih warna",
+    chooseSize: "Pilih saiz",
+    specifications: "Spesifikasi",
+    description: "Penerangan",
+    faqTitle: "Soalan tentang barang ini",
+    relatedTitle: "Anda mungkin juga pertimbangkan",
+    inSameCategory: "Lain-lain dalam kategori ini",
+    priceNote: "Harga dimasukkan sendiri oleh kami dalam Ringgit. Tiada anggaran.",
+    priceOnRequestBody:
+      "Harga untuk barang ini belum ditetapkan, jadi kami tidak menerbitkannya. Hantarkan mesej dan kami akan memberi sebut harga terus kepada anda.",
+    requestQuote: "Minta sebut harga",
+    addToCart: "Tambah ke troli",
+    unavailable: "Belum boleh dipesan",
+    stockLeft: "dalam stok",
+    sku: "SKU",
+    share: "Kongsi",
+    placeholderNotice:
+      "Gambar di atas ialah ilustrasi sementara, bukan gambar produk siap.",
+    dimensionPending: "Ukuran sedang diambil",
+  },
+
   footer: {
     shopHeading: "Beli-belah",
     helpHeading: "Bantuan",
@@ -416,6 +472,33 @@ const zh: Dictionary = {
     whatsappCta: "询问这个分类",
     placeholderNote: "临时示意图",
     inThisCategory: "这个分类涵盖什么",
+  },
+
+  product: {
+    breadcrumb: "产品",
+    leatherType: "皮革",
+    fullGrain: "全粒面",
+    topGrain: "头层",
+    colour: "颜色",
+    size: "尺寸",
+    chooseColour: "选择颜色",
+    chooseSize: "选择尺寸",
+    specifications: "产品规格",
+    description: "产品说明",
+    faqTitle: "关于这件产品的问题",
+    relatedTitle: "你或许也会考虑",
+    inSameCategory: "同分类其他款式",
+    priceNote: "价格由我们以令吉手动输入，绝无估算。",
+    priceOnRequestBody:
+      "这款产品尚未定价，所以我们没有公布价格。发送讯息给我们，我们会直接为你报价。",
+    requestQuote: "索取报价",
+    addToCart: "加入购物车",
+    unavailable: "暂未开放订购",
+    stockLeft: "件现货",
+    sku: "货号",
+    share: "分享",
+    placeholderNotice: "上方图片为临时示意图，并非成品实拍照片。",
+    dimensionPending: "尺寸测量中",
   },
 
   footer: {

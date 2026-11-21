@@ -3,7 +3,7 @@
 This file is the single source of truth for what has been built, what has been
 verified, and what comes next. Update it at the end of every working session.
 
-**Last updated:** Phase 1 completed.
+**Last updated:** Phase 2 step 1 completed (product model + manual pricing).
 
 ---
 
@@ -12,7 +12,10 @@ verified, and what comes next. Update it at the end of every working session.
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 1 | Foundation: architecture, design system, i18n, 7 categories, static pages, homepage, SEO infrastructure | ✅ Complete |
-| 2 | E-commerce: product model, product pages, manual pricing, cart, checkout, orders | ⬜ Not started |
+| 2 | E-commerce | 🔶 In progress |
+| 2a | Product model, product pages, manual pricing engine, variant/availability display | ✅ Complete |
+| 2b | Cart, checkout handoff, order records | ⬜ Next |
+| 2c | Admin product management screen (add/edit/publish/pricing) | ⬜ Pending 2b |
 | 3 | Multilingual completion for commerce surfaces (cart, checkout, forms, admin) | ⬜ Blocked by Phase 2 |
 | 4 | Nationwide location SEO: Malaysia geo database, location pages, internal linking | ⬜ Not started |
 | 5 | Content marketing, AEO/GEO/LLMO assets, articles | ⬜ Deferred until Phase 2–4 |
@@ -96,11 +99,88 @@ verified, and what comes next. Update it at the end of every working session.
 
 ---
 
+## Phase 2a — product model and manual pricing (completed)
+
+### Data model (`src/content/types.ts`)
+`Product` covers every field the brief requires: per-language slug, name, short
+and long descriptions, leather type, images with alt text and a placeholder
+flag, colour and size options, variants with per-combination stock, grouped
+specifications, SKU, merchandising flags (featured / new arrival / bestseller),
+per-language SEO title and description, product FAQs, related products, status
+and display order.
+
+**Price is a union, not a nullable number:**
+
+```ts
+type PriceState =
+  | { kind: "on-request" }
+  | { kind: "fixed"; amountSen: number; currency: "MYR"; compareAtSen?: number };
+```
+
+Modelling "no price" as an explicit state makes "unpriced" impossible to
+confuse with `0`, `null` or a missing field.
+
+### Pricing engine (`src/lib/pricing.ts`)
+The only place a price string is ever produced, so the "never invent a price"
+rule has exactly one implementation to audit.
+
+- `resolvePrice()` → `on-request` or a formatted `RM` amount.
+- Invalid data (`0`, negative, `NaN`, `Infinity`) falls back to **on-request**,
+  never to a number.
+- `compareAtSen` is honoured **only** when genuinely higher than the selling
+  price. A lower or equal value is discarded, so a fake discount cannot be
+  manufactured by bad data.
+- `resolveAvailability()` reports `in-stock` / `partially-available` /
+  `out-of-stock` / `unconfigured` from real per-variant stock.
+- Unpriced items are never orderable, even when stock exists.
+
+### Product pages
+- Localized URLs: `/en/products/…`, `/ms/produk/…`, `/zh/chan-pin/…`, 21 pages
+  pre-rendered. A wrong catalog segment (e.g. `/en/produk/…`) returns 404.
+- Gallery, leather-grade badge, variant selector with per-size availability,
+  grouped specifications, product FAQs, related products and same-category
+  siblings.
+- The language switcher resolves the **equivalent product slug**, verified in
+  tests for all three directions.
+- `offers` in Product structured data is emitted **only** when a real price
+  exists; unpriced products get valid Product markup without an offer.
+
+### Seed catalogue (7 products, one per category)
+`src/content/products.ts` — every entry is `on-request` with zero stock. This is
+deliberate: it proves the price-on-request path end to end before any real
+price exists. Measurements the owner has not confirmed are marked
+"being measured" rather than invented.
+
+### Build-time guard (`src/lib/validate-catalogue.ts`)
+`assertCatalogueValid()` runs during page generation and fails the build on:
+non-approved categories, missing per-language slugs, non-positive fixed prices,
+fake discounts, unknown colour/size references, invalid stock, missing images,
+missing SKU, and cross-language slug collisions.
+
+### Tests (30 assertions, `npm test`)
+Three suites: pricing engine (21), catalogue validation (9), language switching
+(8). Highlights: fake discounts rejected, corrupt values fall back to
+on-request, unpriced items not orderable, slug translation correct in every
+direction, unknown product yields no link.
+
+**Bug found and fixed during testing:** `Intl.NumberFormat` with `narrowSymbol`
+inserts a non-breaking space (U+00A0) in the Malay locale. It renders
+identically but would break string comparison and any downstream export, so
+`formatSen()` now normalises it to a regular space.
+
 ## Verified in this session
 
 | Check | Result |
 | --- | --- |
-| `npm run build` | ✅ 57 routes, all static |
+| `npm run build` | ✅ 78 routes, all static |
+| `npm test` | ✅ 30 assertions pass |
+| Product pages (all 3 languages) | ✅ 200, with correct localized slugs |
+| Wrong catalog segment (`/en/produk/…`) | ✅ 404 |
+| Unpriced product shows "Price on request" | ✅ in en, ms, zh |
+| No currency string leaks on unpriced products | ✅ verified by grep |
+| No `offers` schema without a real price | ✅ verified |
+| Language switch across product pages | ✅ correct slug in all directions |
+| Sitemap | ✅ 72 URLs incl. all products |
 | `npm run typecheck` | ✅ no errors |
 | `npm run lint` | ✅ no errors |
 | `/` → locale redirect | ✅ 308 → `/en` |
@@ -143,18 +223,18 @@ should be eyeballed on a real device in the next session.
 
 ## Next task
 
-**Phase 2, step 1 — product data model and manual pricing engine.**
+**Phase 2b — cart and checkout handoff.**
 
-1. Define the `Product` type covering every field the master prompt requires:
-   name, category, descriptions (long + short), images, leather type, colour and
-   size options, specifications, SKU, stock, variations, status (draft/published),
-   featured/new/bestseller flags, per-language SEO title, meta description,
-   slug, image alt text, product FAQs, related products, **manual price** and
-   optional discounted price.
-2. Implement `priceOnRequest` behaviour: no price → "Price on Request" in all
-   three languages, and no `Offer` in structured data.
-3. Model six trilingual seed products (one per category plus a set) **with no
-   prices entered**, proving the price-on-request path before any number is set
-   by the owner.
-4. Build the product page with localized URLs (`/en/products/…`,
-   `/ms/produk/…`, `/zh/chan-pin/…`) and per-variant availability display.
+1. Add a cart context (client-side, persisted to `localStorage`) holding
+   product id, variant id, quantity and the price captured at the time of
+   adding.
+2. Enforce the pricing rule in the cart: an item that is `on-request` cannot be
+   added; a price change after adding must be surfaced, not silently applied.
+3. Build `/en/cart`, `/ms/troli`, `/zh/gou-wu-che` with localized copy, quantity
+   editing, removal, and a running subtotal — plus an explicit statement that
+   shipping is calculated at checkout.
+4. Add the checkout entry point and a guest-checkout form (name, phone, address,
+   postcode, state/district) validated for Malaysian formats, with the payment
+   step stubbed and clearly marked as not yet live.
+5. Flip `features.cart` to `true` in `src/lib/features.ts` in the same commit,
+   so no button claims a capability the build does not have.

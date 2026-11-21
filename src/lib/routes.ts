@@ -75,6 +75,12 @@ const routes = {
   terms: {
     path: { en: ["terms"], ms: ["terma"], zh: ["tiao-kuan"] },
   },
+
+  // Products. Slugs are per-product and per-language, so the pattern carries a
+  // placeholder that the switcher fills from the matched product.
+  product: {
+    path: { en: ["products", "[slug]"], ms: ["produk", "[slug]"], zh: ["chan-pin", "[slug]"] },
+  },
 } satisfies Record<string, RouteDef>;
 
 export type RouteKey = keyof typeof routes;
@@ -168,15 +174,56 @@ export function matchPath(pathname: string): Match | null {
   return best;
 }
 
-/** The same page in another language, or null when no equivalent exists. */
-export function switchPath(pathname: string, target: Locale): string | null {
+/**
+ * Translates a URL segment into the equivalent segment in another language.
+ *
+ * Product slugs are per-language and cannot be derived from a pattern, so the
+ * caller supplies a resolver backed by the catalogue. Without one, a product
+ * path can only be switched when the slug happens to be identical in both
+ * languages — which it never is — so the caller gets `null` and renders a
+ * disabled option instead of a broken link.
+ */
+export type SlugResolver = (from: Locale, to: Locale, slug: string) => string | null;
+
+export function switchPath(
+  pathname: string,
+  target: Locale,
+  resolveSlug?: SlugResolver,
+): string | null {
   const match = matchPath(pathname);
   if (!match) return null;
+
+  const params: Params = { ...match.params };
+  if ("slug" in params && match.locale !== target) {
+    // Prefer an explicit slug map supplied by the route pattern itself.
+    const mapped = slugTranslations[`${match.locale}>${params.slug}`];
+    const translated = mapped?.find((entry) => entry.locale === target)?.slug
+      ?? resolveSlug?.(match.locale, target, params.slug)
+      ?? null;
+    if (!translated) return null;
+    params.slug = translated;
+  }
+
   try {
-    return pathFor(match.key, target, match.params);
+    return pathFor(match.key, target, params);
   } catch {
     return null;
   }
+}
+
+/**
+ * Static slug translations for dynamic routes, registered by the catalogue
+ * layer. Kept as a plain map so the routing module stays free of content
+ * imports and therefore cannot create a circular dependency.
+ */
+const slugTranslations: Record<string, { locale: Locale; slug: string }[]> = {};
+
+export function registerSlugTranslation(
+  from: Locale,
+  slug: string,
+  translations: { locale: Locale; slug: string }[],
+): void {
+  slugTranslations[`${from}>${slug}`] = translations;
 }
 
 /** Strip the locale prefix so a root layout can be told which locale it serves. */
