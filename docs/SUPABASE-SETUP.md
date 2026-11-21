@@ -52,6 +52,30 @@ That file creates the `products` and `orders` tables, the constraints that stop
 an order being marked paid without a payment record, and enables Row Level
 Security with **no public access at all**.
 
+### 2b. Create the photo bucket
+
+Uploaded product photos live in Supabase Storage, which has its own permissions,
+so it needs a separate script.
+
+1. **SQL Editor** → **New query** again.
+2. Open `supabase/migrations/0002_storage.sql`, copy the whole file, paste it in,
+   and press **Run**.
+
+It creates a bucket called `product-images` and makes it **public to read,
+private to write**. That split is deliberate:
+
+- **Read is public** because these are shop photos on public pages. Private
+  buckets would need expiring links, which breaks Google image indexing and
+  caching for no benefit.
+- **Write is private** because a public upload policy would let anyone holding
+  the public key fill your bucket with their own files, served from your domain,
+  and spend your bandwidth allowance. Uploads go through the admin, which uses
+  the secret service-role key and checks each file's actual bytes first.
+
+The bucket also refuses anything over 8 MB and accepts only JPEG, PNG, WebP and
+AVIF. **SVG is refused on purpose**: an SVG is a document that can carry
+JavaScript, and serving one from your own domain is a genuine security risk.
+
 ## 3. Copy the connection string
 
 1. **Project Settings** → **Database** → **Connection string** → **URI**.
@@ -75,13 +99,22 @@ Locally, in `.env.local` (already git-ignored):
 ```bash
 SUPABASE_DB_URL=postgresql://postgres.abcdefghijkl:PASSWORD@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
 
-# For the security verification script only — these are the PUBLIC values.
+# Needed for product photo uploads, and for the verification script.
 SUPABASE_URL=https://abcdefghijkl.supabase.co
 SUPABASE_ANON_KEY=eyJhbGciOi...   # Project Settings → API → anon public
+
+# SECRET. Project Settings → API → service_role. Server-side only.
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
 ```
 
 On Vercel: **Project → Settings → Environment Variables**, add
-`SUPABASE_DB_URL` for Production, Preview and Development.
+`SUPABASE_DB_URL`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for
+Production, Preview and Development.
+
+The `service_role` key bypasses all database security. It is only ever read in
+server code in this app, but treat it like a password: never paste it into a
+client component, a chat message, a screenshot or a support ticket. If it leaks,
+rotate it in **Project Settings → API → JWT Settings**.
 
 > **Never** prefix these with `NEXT_PUBLIC_`. That would ship the database
 > credentials to every browser. The app reads them only in server code.
@@ -109,6 +142,8 @@ This is the step worth not skipping. It checks that:
 - RLS is enabled on both,
 - **no** policy allows public access,
 - the **anon key genuinely cannot read** products or orders,
+- the `product-images` bucket exists, is public-read, and enforces the 8 MB limit,
+- **no** policy allows public writes to storage,
 - every product in the database passes the application's own validation.
 
 All lines should say PASS. If any line says the public key can read a table,
@@ -174,7 +209,11 @@ not this repository, and keep the last few.
 - **Authentication is unchanged.** The admin still uses the single-owner
   password from Phase 2c. Moving to Supabase Auth would mean rewriting and
   re-testing authorisation that currently works, for no benefit at one user.
-- **File storage is not wired.** Product photos still come from the repository.
-  Supabase Storage can host them later; nothing here blocks that.
+- **Photo storage requires the two Supabase variables.** Without `SUPABASE_URL`
+  and `SUPABASE_SERVICE_ROLE_KEY` the admin refuses uploads with a plain message
+  rather than pretending to save. Existing repository photos keep working, so a
+  shop with no storage configured is still fully browsable and orderable — you
+  just cannot add a *new* photo until those are set. Uploads are refused, never
+  faked.
 - **Payments remain disabled.** `features.payments` is still `false`. No order
   can be marked paid; the database constraint enforces this too.

@@ -448,6 +448,92 @@ the gap against the real project, and it is written to fail loudly.
 
 ---
 
+## Phase 3b — product photo uploads (completed)
+
+The upload path exists and every check is real. What it cannot do here is
+connect to a bucket, because none exists in this environment.
+
+### Rules (`src/lib/images/rules.ts`)
+
+Pure functions, so they can be tested exhaustively without a bucket or browser:
+
+| Rule | Value | Why |
+| --- | --- | --- |
+| Maximum size | 8 MB | A phone photo is 2–4 MB; 8 MB covers it without allowing a 2 GB file |
+| Maximum per product | 6 | Enough for angles and detail, no endless gallery |
+| Allowed types | JPEG, PNG, WebP, AVIF | All four render everywhere the shop is likely to appear |
+| SVG | **Refused** | An SVG is a document that can carry JavaScript, served from this domain |
+| Type check | **Magic bytes** | The browser's `type` and the filename are claims; only the bytes are evidence |
+| Storage path | slug(product id) + random suffix + verified extension | The original filename never reaches storage, so a hostile one cannot influence the path |
+
+`validateImageUpload` runs its checks in a fixed order — empty, size, declared
+type, real bytes, mismatch — so the message the owner sees names the first real
+problem rather than a symptom of it.
+
+### Storage (`src/lib/images/storage.ts`)
+
+An interface with one implementation, `SupabaseImageStorage`, calling the
+Storage REST API directly. No new dependency. Writes use `x-upsert: false`, so
+an upload can never silently overwrite another photo. Deletes treat a 404 as
+success, because the desired end state — no file at that path — is already true.
+
+Configuration requires **both** `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+The anon key is deliberately rejected: it has no write permission, so accepting
+it would produce a confusing failure later instead of a clear refusal now.
+
+### Failure behaviour
+
+| Situation | What happens |
+| --- | --- |
+| Storage not configured | Upload refused, message names the missing variables |
+| File empty / too large | Refused before the body is buffered |
+| SVG, GIF, PDF, anything else | Refused, with the four accepted formats named |
+| Bytes disagree with the declared type | Refused as a mismatch |
+| Seven photos on one product | Refused, counted from the **stored** record, not the browser |
+| Not logged in | Refused before any file is read |
+| Existing repository photos | Unaffected — `/images/…` paths are not touched |
+
+### What the form may and may not attach (`src/app/admin/actions.ts`)
+
+The editor submits its image list so alt-text edits and removals survive a save.
+An entry is accepted only if it was **already on that product** or points at an
+object in **our own bucket**. A crafted request therefore cannot attach an
+arbitrary URL, and a photo has to have been genuinely uploaded first.
+
+### Rendering
+
+`next.config.ts` derives `images.remotePatterns` from `SUPABASE_URL`, scoped to
+`/storage/v1/object/public/**` and https only. Without it `next/image` refuses
+the host and every uploaded photo renders broken — a failure that would only
+appear after the owner had already uploaded something.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| Magic bytes for all four formats | ✅ |
+| Type/declared mismatch, SVG, PHP, ZIP | ✅ all refused |
+| Empty file, over-limit, exactly-at-limit | ✅ |
+| Path traversal via product id, suffix, absolute path | ✅ neutralised |
+| Foreign host, lookalike host, data URL | ✅ refused |
+| `next/image` pattern derivation and malformed URL | ✅ |
+| Image cap and add/remove immutability | ✅ |
+| Upload without configuration | ✅ refused, message names the variable |
+| Media panel: empty, populated, full, read-only | ✅ |
+| `tests/images.test.ts` | ✅ 85 assertions |
+| `tests/admin-media.test.tsx` | ✅ 31 assertions |
+| `npm test` | ✅ 773 assertions across 15 suites |
+| `npm run verify` | ✅ clean, 87 pages |
+| Storefront with no storage configured | ✅ pages 200, uploads refused |
+
+**Not verifiable here:** no bucket exists, so no file was actually stored. Every
+rule, refusal, path and render path is covered by tests; the first real upload
+is the step that closes it, and `npm run db:verify` now checks the bucket's
+existence, its public-read flag, its 8 MB limit and the absence of public write
+policies.
+
+---
+
 ## Known gaps and deliberate deferrals
 
 1. **Persistence needs the owner to create the Supabase project.** The code,
@@ -460,9 +546,11 @@ the gap against the real project, and it is written to fail loudly.
 3. **Orders are durable only once Supabase is connected.** Without a database
    they live in server memory and are lost on restart, which the confirmation
    screen and admin both state. With `SUPABASE_DB_URL` set they persist.
-4. **Images cannot be uploaded from the admin.** A product photo can only be
-   added in the repository, so publishing requires one to exist already. Upload
-   needs a storage bucket and is deliberately not faked.
+4. **Photo uploads need a storage bucket.** The upload code, rules, panel and
+   bucket SQL are complete and tested, but no bucket exists yet, so uploads are
+   refused with a message naming the missing variables. Adding one takes two
+   minutes: `docs/SUPABASE-SETUP.md` step 2b. Until then the seven products keep
+   their repository photos and publishing still requires one to exist.
 5. **The login rate limit is per instance and in memory.** It resets on
    redeploy and is not shared between serverless instances. Adequate for a
    single owner; documented rather than overbuilt.

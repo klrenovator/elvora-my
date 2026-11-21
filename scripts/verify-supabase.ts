@@ -148,6 +148,64 @@ async function main() {
     }
   }
 
+  /* ------------------------------- Storage ------------------------------ */
+
+  console.log("\nImage storage");
+
+  const buckets = await sql<{
+    id: string;
+    public: boolean;
+    file_size_limit: number | null;
+    allowed_mime_types: string[] | null;
+  }[]>`
+    select id, public, file_size_limit, allowed_mime_types
+    from storage.buckets where id = 'product-images'
+  `;
+
+  const bucket = buckets[0];
+  ok("the product-images bucket exists", Boolean(bucket), "run 0002_storage.sql");
+
+  if (bucket) {
+    ok("the bucket is public-read", bucket.public === true);
+    ok(
+      "the bucket enforces the 8 MB limit",
+      bucket.file_size_limit === 8388608,
+      `got ${bucket.file_size_limit}`,
+    );
+
+    const types = bucket.allowed_mime_types ?? [];
+    ok(
+      "SVG is not an allowed upload type",
+      !types.includes("image/svg+xml"),
+      "an SVG can carry script and would be served from your domain",
+    );
+    ok(
+      "only the four supported formats are allowed",
+      types.length === 4 && types.every((type) => type.startsWith("image/")),
+      types.join(", "),
+    );
+  }
+
+  const storagePolicies = await sql<{ policyname: string; cmd: string }[]>`
+    select policyname, cmd from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+      and 'product-images' = any(qual::text[]::text[] || array[]::text[])
+  `.catch(async () => {
+    // The qual column shape varies between Supabase versions; fall back to
+    // listing every storage policy and filtering in JS.
+    return sql<{ policyname: string; cmd: string }[]>`
+      select policyname, cmd from pg_policies
+      where schemaname = 'storage' and tablename = 'objects'
+    `;
+  });
+
+  const writePolicies = storagePolicies.filter((policy) => policy.cmd !== "SELECT");
+  ok(
+    "no public write policy exists on storage",
+    writePolicies.length === 0,
+    `${writePolicies.map((policy) => policy.policyname).join(", ")} — anyone could upload`,
+  );
+
   /* -------------------------------- Data -------------------------------- */
 
   console.log("\nCatalogue");

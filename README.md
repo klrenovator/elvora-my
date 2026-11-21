@@ -23,7 +23,7 @@ falling back to English.
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm test            # 657 assertions across 14 suites
+npm test            # 773 assertions across 15 suites
 npm run verify      # typecheck + lint + tests + build, in one command
 npm run build       # production build, all routes pre-rendered
 ```
@@ -214,6 +214,28 @@ Keep the aspect ratios (4:5 for categories, 3:2 for the hero, 16:10 for the
 macros). When original photography lands, remove the placeholder badges —
 search for `placeholderNote` and `placeholderDisclosure`.
 
+### Uploading real product photos
+
+Once Supabase Storage is configured (see
+[docs/SUPABASE-SETUP.md](./docs/SUPABASE-SETUP.md), step 2b), each product's
+editor has a **Photos** panel. Choose a file and it uploads immediately; save
+the product to attach it.
+
+What is enforced, by the server and not the browser:
+
+- **8 MB maximum**, at most **6 photos** per product.
+- **JPEG, PNG, WebP or AVIF**, decided by the file's actual header bytes. A file
+  claiming to be a JPEG but containing something else is refused.
+- **SVG is refused.** It can carry script and would be served from this domain.
+- The stored filename is generated from the product plus a random suffix. The
+  original filename is never used, so a hostile one cannot influence the path.
+- English alt text is required before publishing, because it is what a
+  screen-reader user and a visitor on a broken connection depend on.
+
+If storage is **not** configured, uploads are refused with a message naming the
+missing variables. Nothing claims to have saved. Removing a photo deletes the
+stored object too, so files do not quietly accumulate in the bucket.
+
 ## Brand identity
 
 The wordmark in `src/components/logo.tsx` is intentionally temporary and
@@ -316,8 +338,9 @@ variable.
 | `ADMIN_PASSWORD_HASH` | For admin | Password hash from `npm run admin:hash`. Without it the admin refuses all logins. |
 | `ADMIN_SESSION_SECRET` | For admin | Signs session cookies. Must be 32+ characters. |
 | `SUPABASE_DB_URL` | Optional | Supabase **pooler** connection string (port 6543). Enables persistent catalogue and orders. Without it the site runs on the compiled catalogue. |
-| `SUPABASE_URL` | Optional | Project URL, used only by `npm run db:verify`. |
+| `SUPABASE_URL` | For photos | Project URL. Also used by `npm run db:verify` and to allowlist the image host. |
 | `SUPABASE_ANON_KEY` | Optional | Public anon key, used only to prove public access is denied. |
+| `SUPABASE_SERVICE_ROLE_KEY` | For photos | **Secret.** Server-only key that uploads to Storage. Bypasses database security — never expose it to a browser. |
 
 Full setup, including creating the tables and verifying row-level security, is
 in [docs/SUPABASE-SETUP.md](./docs/SUPABASE-SETUP.md).
