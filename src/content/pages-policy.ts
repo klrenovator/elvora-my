@@ -148,136 +148,349 @@ export const shippingPage: ContentPage = {
 
 export const returnsPage: ContentPage = {
   slug: { en: "returns", ms: "pemulangan", zh: "tui-huan" },
-  title: { en: "Returns and exchanges", ms: "Pemulangan dan pertukaran", zh: "退换货" },
+  title: {
+    en: "Returns and refunds",
+    ms: "Pemulangan dan bayaran balik",
+    zh: "退货与退款",
+  },
   metaTitle: {
-    en: "Returns and Exchanges — Genuine Leather Orders in Malaysia",
-    ms: "Pemulangan dan Pertukaran — Pesanan Kulit Asli di Malaysia",
-    zh: "退换货——马来西亚真皮订单",
+    en: "Returns and Refunds — 30 Days for Incorrect, Damaged or Defective Items",
+    ms: "Pemulangan dan Bayaran Balik — 30 Hari untuk Barang Salah, Rosak atau Cacat",
+    zh: "退货与退款——寄错、损坏或有瑕疵的商品 30 天内处理",
   },
   metaDescription: {
-    en: "Our returns and exchange policy for leather wallets, belts, handbags and dog accessories: what qualifies, what does not, and how to start a return.",
-    ms: "Polisi pemulangan dan pertukaran kami untuk dompet, tali pinggang, beg tangan dan aksesori anjing kulit: apa yang layak, apa yang tidak, dan cara memulakan pemulangan.",
-    zh: "真皮钱包、皮带、手提包与狗狗用品的退换货政策：哪些情况符合条件、哪些不符合，以及如何申请退货。",
+    en: "How to return an incorrect, damaged, defective or misdescribed leather item within 30 days of delivery: what to send us, how approval works, and how refunds and replacements are handled.",
+    ms: "Cara memulangkan barang kulit yang salah, rosak, cacat atau tidak seperti yang diterangkan dalam tempoh 30 hari selepas diterima: apa yang perlu dihantar, cara kelulusan berfungsi, dan cara bayaran balik serta penggantian diuruskan.",
+    zh: "如何在收货后 30 天内退回寄错、损坏、有瑕疵或与描述不符的真皮商品：需要提供哪些资料、审核流程，以及退款与更换如何处理。",
   },
   blocks: {
     en: [
       {
         type: "p",
-        text: "If a size is wrong or a product is not what you expected, contact us before using it. Unworn items in their original condition can be exchanged or returned, and we would rather sort out a size problem than have you keep something that does not fit.",
+        text: "If your order is not what it should have been, tell us within 30 days of receiving it. This policy covers an item that arrived damaged, is defective or faulty, is not the product you ordered, or does not match what was described on this website. Your statutory rights under Malaysian consumer law apply in full and are set out separately below.",
       },
-      { type: "h", text: "What qualifies" },
+      {
+        type: "callout",
+        text: "This is not a change-of-mind policy. We do not offer returns simply because a customer has changed their mind, or because a belt length or collar size was ordered incorrectly. Please measure before ordering — our sizing guides exist for that reason.",
+      },
+      { type: "h", text: "What can be returned within 30 days" },
       {
         type: "list",
         items: [
-          "The item is unused, with no creasing from being carried, worn or filled.",
-          "Tags, dust bag and any packaging are intact.",
-          "You contacted us within the return window shown on your order confirmation.",
-          "The item was purchased directly from this website.",
+          "You received a different product from the one you ordered — a different model, colour, size or quantity.",
+          "The product arrived damaged in transit.",
+          "The product is defective or faulty: stitching that has failed, hardware that does not function, or a fault in the material.",
+          "The product is not as described — the item does not match the specification, materials or dimensions stated on its product page.",
         ],
       },
-      { type: "h", text: "What does not qualify" },
-      {
-        type: "list",
-        items: [
-          "Items that have been worn, used, conditioned or altered.",
-          "Belts that have had extra holes punched or been cut to length, and collars that have been worn by a dog.",
-          "Damage caused after delivery, including water damage from full immersion or heat damage from drying near a direct source.",
-          "Natural variation in leather grain, colour tone or marking, which is a property of the material rather than a fault.",
-        ],
-      },
-      { type: "h", text: "How to start a return" },
+      { type: "h", text: "Time limit" },
       {
         type: "p",
-        text: "Message us with your order number, the item, and photographs showing its condition and any issue. We will confirm whether the return is approved and give you the return address. Please do not send an item before you have that confirmation, because parcels that arrive without a reference are difficult to match to an order.",
+        text: "You have 30 calendar days from the date you receive the order to raise the issue with us. The 30 days start on delivery, not on the date the order was placed. Please raise it as soon as you notice something wrong — the sooner we see it, the more we can do about it.",
+      },
+      { type: "h", text: "What to include in your return request" },
+      {
+        type: "list",
+        items: [
+          "Your order number, and which item or items the request relates to.",
+          "A clear explanation of the reason for the return, naming what is wrong with the product.",
+          "Photographs or a short video showing the issue, clearly enough for us to verify it.",
+          "Relevant product details — the size, colour and variant shown on your order.",
+        ],
+      },
+      {
+        type: "p",
+        text: "A request that does not identify the item or the fault cannot be assessed, so we may have to ask you for it before we can proceed. Please include it in your first message where possible.",
+      },
+      { type: "h", text: "How a return is approved" },
+      {
+        type: "p",
+        text: "We review your request, the photographs or video, and the order details, and reply to tell you whether the return is approved. If we need more information, or the photographs do not show the issue clearly, we will ask for it. Once approved, we issue a return reference and the return address. Please do not send anything before you have that confirmation — a parcel that arrives without a reference is difficult to match to an order, and may be refused.",
+      },
+      { type: "h", text: "Inspection on arrival" },
+      {
+        type: "p",
+        text: "When the item reaches us we inspect it against the reason given. We check the fault or the mismatch you described, and confirm the item is the one from your order. We aim to complete the inspection and tell you the outcome promptly, and we will contact you if anything about the inspection is unclear.",
       },
       { type: "h", text: "Refunds" },
       {
         type: "p",
-        text: "Once a returned item is received and checked, the refund is issued to the original payment method. Your bank or payment provider may take additional working days to post it. Delivery charges are refunded only where the item was faulty or incorrectly sent.",
+        text: "Once the item has been inspected and the return approved, the refund is issued to the original payment method used for the order, for the price you paid for the item. Where the return is our fault — damaged, defective, incorrect or misdescribed — your original delivery charge is refunded as well. Your bank or payment provider may take additional working days to post the amount to your account.",
       },
+      { type: "h", text: "Replacements and exchanges" },
       {
-        type: "callout",
-        text: "The exact return window and return address are confirmed on your order confirmation email and at checkout. They are deliberately not printed as a fixed figure on this page, because they depend on the courier arrangement in place when you ordered.",
+        type: "p",
+        text: "Where the item is available, you may choose a replacement of the same product, or an exchange for the correct item where the wrong one was sent. If the replacement is out of stock, we will tell you and offer either a refund or an exchange for another item of the same value. Where a replacement or exchange costs more than the original item, we will tell you the difference before proceeding; where it costs less, the difference is refunded.",
+      },
+      { type: "h", text: "Who pays return delivery" },
+      {
+        type: "p",
+        text: "Where the return is because of an incorrect, damaged, defective or misdescribed product, we cover the return delivery. We will tell you how to send it back once the return is approved. Do not use an expensive service or arrange your own courier before we have confirmed the method, because we may not be able to reimburse a cost we did not agree to.",
+      },
+      { type: "h", text: "Natural characteristics that are not faults" },
+      {
+        type: "p",
+        text: "Leather is a natural material. Variation in grain, tone, marking and colour between pieces, and the patina that develops with use, are characteristics of genuine leather rather than defects. Scratches and softening that come from normal wear are also not faults. If you are unsure whether something is a fault, send us a photograph and we will tell you honestly what we think it is.",
+      },
+      { type: "h", text: "Your statutory rights" },
+      {
+        type: "p",
+        text: "Nothing in this policy removes, reduces or limits any right you have under Malaysian consumer protection law, including the Consumer Protection Act 1999 and the Consumer Protection (Electronic Trade Transactions) Regulations 2012. Goods supplied must be of acceptable quality, fit for their purpose, and match their description. Where a product is defective, damaged, incorrect or misdescribed, your statutory remedies are available to you regardless of anything written on this page, and this 30-day policy does not replace or shorten them.",
+      },
+      { type: "h", text: "How this relates to the warranty" },
+      {
+        type: "p",
+        text: "This policy covers the first 30 days after delivery. Our 12-month warranty covers defects in workmanship and hardware that appear after that, and is handled separately.",
       },
     ],
     ms: [
       {
         type: "p",
-        text: "Jika saiz tidak padan atau produk bukan seperti yang anda jangkakan, hubungi kami sebelum menggunakannya. Barang yang belum dipakai dalam keadaan asal boleh ditukar atau dipulangkan, dan kami lebih suka menyelesaikan masalah saiz daripada membiarkan anda menyimpan sesuatu yang tidak padan.",
+        text: "Jika pesanan anda tidak seperti sepatutnya, beritahu kami dalam tempoh 30 hari selepas menerimanya. Polisi ini meliputi barang yang tiba dalam keadaan rosak, cacat atau tidak berfungsi, bukan produk yang anda pesan, atau tidak sepadan dengan apa yang diterangkan di laman web ini. Hak berkanun anda di bawah undang-undang pengguna Malaysia terpakai sepenuhnya dan dinyatakan secara berasingan di bawah.",
       },
-      { type: "h", text: "Apa yang layak" },
+      {
+        type: "callout",
+        text: "Ini bukan polisi pemulangan atas sebab bertukar fikiran. Kami tidak menawarkan pemulangan semata-mata kerana pelanggan bertukar fikiran, atau kerana panjang tali pinggang atau saiz kolar dipesan dengan salah. Sila ukur sebelum memesan — panduan saiz kami wujud untuk tujuan itu.",
+      },
+      { type: "h", text: "Apa yang boleh dipulangkan dalam tempoh 30 hari" },
       {
         type: "list",
         items: [
-          "Barang belum digunakan, tanpa kesan lipatan akibat dibawa, dipakai atau diisi.",
-          "Tag, beg habuk dan sebarang pembungkusan masih utuh.",
-          "Anda menghubungi kami dalam tempoh pemulangan yang dinyatakan pada pengesahan pesanan anda.",
-          "Barang dibeli terus daripada laman web ini.",
+          "Anda menerima produk yang berbeza daripada yang anda pesan — model, warna, saiz atau kuantiti yang berbeza.",
+          "Produk tiba dalam keadaan rosak semasa penghantaran.",
+          "Produk cacat atau tidak berfungsi: jahitan yang telah gagal, perkakasan yang tidak berfungsi, atau kecacatan pada bahan.",
+          "Produk tidak seperti yang diterangkan — barang tidak sepadan dengan spesifikasi, bahan atau dimensi yang dinyatakan pada halaman produknya.",
         ],
       },
-      { type: "h", text: "Apa yang tidak layak" },
-      {
-        type: "list",
-        items: [
-          "Barang yang telah dipakai, digunakan, disapu bahan pelembut atau diubah suai.",
-          "Tali pinggang yang telah ditebuk lubang tambahan atau dipotong, dan kolar yang telah dipakai oleh anjing.",
-          "Kerosakan selepas penghantaran, termasuk kerosakan air akibat direndam sepenuhnya atau kerosakan haba akibat dikeringkan berhampiran sumber haba langsung.",
-          "Perbezaan semula jadi pada ira kulit, ton warna atau tanda, yang merupakan sifat bahan dan bukan kecacatan.",
-        ],
-      },
-      { type: "h", text: "Cara memulakan pemulangan" },
+      { type: "h", text: "Had masa" },
       {
         type: "p",
-        text: "Hantarkan mesej kepada kami dengan nombor pesanan, barang, dan gambar yang menunjukkan keadaannya serta sebarang isu. Kami akan mengesahkan sama ada pemulangan diluluskan dan memberikan alamat pemulangan. Sila jangan menghantar barang sebelum mendapat pengesahan itu, kerana bungkusan yang tiba tanpa rujukan sukar dipadankan dengan pesanan.",
+        text: "Anda mempunyai 30 hari kalendar dari tarikh anda menerima pesanan untuk mengemukakan isu ini kepada kami. Tempoh 30 hari bermula pada tarikh penghantaran diterima, bukan pada tarikh pesanan dibuat. Sila kemukakan sebaik sahaja anda perasan sesuatu yang tidak kena — lebih awal kami melihatnya, lebih banyak yang boleh kami lakukan.",
+      },
+      { type: "h", text: "Apa yang perlu disertakan dalam permohonan pemulangan" },
+      {
+        type: "list",
+        items: [
+          "Nombor pesanan anda, dan barang mana yang berkaitan dengan permohonan itu.",
+          "Penjelasan yang jelas tentang sebab pemulangan, dengan menyatakan apa yang tidak kena pada produk.",
+          "Gambar atau video pendek yang menunjukkan isu itu, cukup jelas untuk kami mengesahkannya.",
+          "Butiran produk yang berkaitan — saiz, warna dan varian seperti yang tertera pada pesanan anda.",
+        ],
+      },
+      {
+        type: "p",
+        text: "Permohonan yang tidak mengenal pasti barang atau kecacatan tidak dapat dinilai, jadi kami mungkin perlu memintanya sebelum meneruskan. Sila sertakan dalam mesej pertama anda jika boleh.",
+      },
+      { type: "h", text: "Cara pemulangan diluluskan" },
+      {
+        type: "p",
+        text: "Kami menyemak permohonan anda, gambar atau video, dan butiran pesanan, kemudian membalas untuk memberitahu sama ada pemulangan diluluskan. Jika kami memerlukan maklumat tambahan, atau gambar tidak menunjukkan isu dengan jelas, kami akan memintanya. Setelah diluluskan, kami mengeluarkan rujukan pemulangan dan alamat pemulangan. Sila jangan menghantar apa-apa sebelum mendapat pengesahan itu — bungkusan yang tiba tanpa rujukan sukar dipadankan dengan pesanan, dan boleh ditolak.",
+      },
+      { type: "h", text: "Pemeriksaan semasa tiba" },
+      {
+        type: "p",
+        text: "Apabila barang sampai kepada kami, kami memeriksanya berdasarkan sebab yang dinyatakan. Kami menyemak kecacatan atau ketidakpadanan yang anda terangkan, dan mengesahkan barang itu ialah barang daripada pesanan anda. Kami berusaha menyelesaikan pemeriksaan dan memberitahu keputusannya dengan segera, dan akan menghubungi anda jika ada perkara yang tidak jelas tentang pemeriksaan itu.",
       },
       { type: "h", text: "Bayaran balik" },
       {
         type: "p",
-        text: "Setelah barang yang dipulangkan diterima dan diperiksa, bayaran balik dibuat ke kaedah pembayaran asal. Bank atau penyedia pembayaran anda mungkin mengambil beberapa hari bekerja tambahan untuk memaparkannya. Caj penghantaran hanya dikembalikan jika barang itu rosak atau tersalah hantar.",
+        text: "Setelah barang diperiksa dan pemulangan diluluskan, bayaran balik dibuat ke kaedah pembayaran asal yang digunakan untuk pesanan itu, bagi harga yang anda bayar untuk barang tersebut. Jika pemulangan itu berpunca daripada pihak kami — rosak, cacat, salah atau tidak seperti diterangkan — caj penghantaran asal anda juga dikembalikan. Bank atau penyedia pembayaran anda mungkin mengambil beberapa hari bekerja tambahan untuk memaparkan jumlah itu dalam akaun anda.",
       },
+      { type: "h", text: "Penggantian dan pertukaran" },
       {
-        type: "callout",
-        text: "Tempoh pemulangan dan alamat pemulangan yang tepat disahkan pada e-mel pengesahan pesanan anda dan semasa pembayaran. Ia sengaja tidak dicetak sebagai angka tetap di halaman ini, kerana ia bergantung pada aturan kurier yang berkuat kuasa semasa anda memesan.",
+        type: "p",
+        text: "Jika barang tersedia, anda boleh memilih penggantian produk yang sama, atau pertukaran dengan barang yang betul jika yang salah dihantar. Jika penggantian kehabisan stok, kami akan memberitahu anda dan menawarkan sama ada bayaran balik atau pertukaran dengan barang lain yang sama nilai. Jika penggantian atau pertukaran berharga lebih daripada barang asal, kami akan memberitahu anda perbezaannya sebelum meneruskan; jika kurang, perbezaannya dikembalikan.",
+      },
+      { type: "h", text: "Siapa menanggung kos penghantaran pemulangan" },
+      {
+        type: "p",
+        text: "Jika pemulangan itu disebabkan produk yang salah, rosak, cacat atau tidak seperti yang diterangkan, kami menanggung kos penghantaran pemulangan. Kami akan memberitahu cara menghantarnya setelah pemulangan diluluskan. Jangan gunakan perkhidmatan yang mahal atau atur kurier sendiri sebelum kami mengesahkan kaedahnya, kerana kami mungkin tidak dapat membayar balik kos yang tidak kami persetujui.",
+      },
+      { type: "h", text: "Ciri semula jadi yang bukan kecacatan" },
+      {
+        type: "p",
+        text: "Kulit ialah bahan semula jadi. Perbezaan pada ira, ton, tanda dan warna antara kepingan, serta patina yang terbentuk dengan penggunaan, ialah ciri kulit asli dan bukan kecacatan. Calar dan pelembutan akibat haus biasa juga bukan kecacatan. Jika anda tidak pasti sama ada sesuatu itu kecacatan, hantarkan gambar kepada kami dan kami akan memberitahu dengan jujur apa pendapat kami.",
+      },
+      { type: "h", text: "Hak berkanun anda" },
+      {
+        type: "p",
+        text: "Tiada apa-apa dalam polisi ini menghapuskan, mengurangkan atau mengehadkan apa-apa hak anda di bawah undang-undang perlindungan pengguna Malaysia, termasuk Akta Perlindungan Pengguna 1999 dan Peraturan-Peraturan Perlindungan Pengguna (Urus Niaga Perdagangan Elektronik) 2012. Barang yang dibekalkan mesti berkualiti yang boleh diterima, sesuai untuk tujuannya, dan sepadan dengan keterangannya. Jika sesuatu produk cacat, rosak, salah atau tidak seperti diterangkan, remedi berkanun anda tersedia tanpa mengira apa-apa yang tertulis di halaman ini, dan polisi 30 hari ini tidak menggantikan atau memendekkannya.",
+      },
+      { type: "h", text: "Hubungannya dengan jaminan" },
+      {
+        type: "p",
+        text: "Polisi ini meliputi 30 hari pertama selepas penghantaran. Jaminan 12 bulan kami meliputi kecacatan kerja tangan dan perkakasan yang muncul selepas itu, dan diuruskan secara berasingan.",
       },
     ],
     zh: [
       {
         type: "p",
-        text: "如果尺码不对，或产品与预期不符，请先联系我们，不要开始使用。未经使用、保持原状的商品可以换货或退货——比起让你留下一件不合用的东西，我们更愿意把尺码问题处理好。",
+        text: "如果订单不是你应有的样子，请在收到货品后 30 天内告诉我们。本政策涵盖：到货时已损坏、有瑕疵或无法正常使用、不是你订购的款式，或与本网站描述不符的商品。你在马来西亚消费者法律下的法定权利完全适用，并在下文另行说明。",
       },
-      { type: "h", text: "符合条件的情况" },
+      {
+        type: "callout",
+        text: "这不是「改变主意」的退货政策。我们并不因为顾客改变主意、或因为皮带长度、项圈尺码订错而提供退货。请在订购前量好尺寸——我们提供尺码指南正是为此。",
+      },
+      { type: "h", text: "30 天内可以退货的情况" },
       {
         type: "list",
         items: [
-          "商品未曾使用，没有因携带、佩戴或装载而留下的折痕。",
-          "吊牌、防尘袋与包装完整。",
-          "你在订单确认信所注明的退换期限内联系我们。",
-          "商品直接购自本网站。",
+          "你收到的商品与订购的不同——型号、颜色、尺码或数量不符。",
+          "商品在运输途中损坏。",
+          "商品有瑕疵或无法正常使用：缝线失效、五金无法运作，或材质存在缺陷。",
+          "商品与描述不符——实物与其产品页面所述的规格、材质或尺寸不一致。",
         ],
       },
-      { type: "h", text: "不符合条件的情况" },
-      {
-        type: "list",
-        items: [
-          "已佩戴、使用、上过保养油或经改动的商品。",
-          "已额外打孔或裁短的皮带，以及狗狗佩戴过的项圈。",
-          "收货后造成的损坏，包括整件浸水造成的损伤，或靠近热源烘干造成的受热损坏。",
-          "皮革纹理、色调与斑痕的自然差异——这是材质的特性，而非瑕疵。",
-        ],
-      },
-      { type: "h", text: "如何申请退换" },
+      { type: "h", text: "期限" },
       {
         type: "p",
-        text: "请把订单编号、商品名称，以及显示其现状与问题的照片发给我们。我们会确认是否批准退换，并提供退货地址。在收到确认之前请勿寄出商品，因为没有编号的包裹很难与订单对应。",
+        text: "你有自收货当日起 30 个日历日的时间向我们提出。30 天从收货日起算，而不是下单日。请在发现问题时尽快提出——我们越早看到，能做的就越多。",
+      },
+      { type: "h", text: "退货申请需要包含什么" },
+      {
+        type: "list",
+        items: [
+          "你的订单编号，以及申请涉及哪一件或哪几件商品。",
+          "清楚说明退货原因，并指出商品具体哪里有问题。",
+          "能显示问题的照片或短视频，清晰程度足以让我们核实。",
+          "相关商品资料——你订单上显示的尺码、颜色与款式。",
+        ],
+      },
+      {
+        type: "p",
+        text: "若申请未能指明商品或瑕疵，我们无法评估，因此可能需要先请你补充资料。请尽量在第一条信息里就一并附上。",
+      },
+      { type: "h", text: "退货如何审核批准" },
+      {
+        type: "p",
+        text: "我们会查看你的申请、照片或视频以及订单资料，然后回复告知是否批准退货。若需要更多资料，或照片未能清楚显示问题，我们会向你索取。批准后，我们会发出退货编号与退货地址。在收到确认之前请勿寄出任何物品——没有编号的包裹很难与订单对应，且可能被拒收。",
+      },
+      { type: "h", text: "到货检查" },
+      {
+        type: "p",
+        text: "商品送达我们后，我们会依你所述的原因检查，核对瑕疵或不相符之处，并确认该商品确属你的订单。我们会尽快完成检查并告知结果；若检查中有任何不清楚之处，会主动联系你。",
       },
       { type: "h", text: "退款" },
       {
         type: "p",
-        text: "退回的商品经收货检查后，退款会退回到原付款方式。你的银行或支付服务商可能需要额外的工作日才显示入账。只有在商品有瑕疵或寄错的情况下，运费才会一并退还。",
+        text: "商品经检查、退货获批准后，退款会退回该订单原本使用的付款方式，金额为该商品的实付价格。若退货原因是我们的责任——损坏、有瑕疵、寄错或与描述不符——你原先支付的运费也会一并退回。你的银行或支付服务商可能需要额外工作日才在账户中显示该款项。",
+      },
+      { type: "h", text: "更换与换货" },
+      {
+        type: "p",
+        text: "若有现货，你可选择更换同款商品；若寄错，则可换为正确的商品。若更换商品缺货，我们会告知你，并提供退款或换成同价值的其他商品两种选择。若更换或换货的商品价格高于原商品，我们会在处理前告知差额；若较低，差额会退回。",
+      },
+      { type: "h", text: "退货运费由谁承担" },
+      {
+        type: "p",
+        text: "若退货原因是商品寄错、损坏、有瑕疵或与描述不符，退货运费由我们承担。退货获批后，我们会告知你寄回的方式。在我们确认方式之前，请勿使用昂贵快递或自行安排物流，因为未获我们同意的费用可能无法报销。",
+      },
+      { type: "h", text: "不属于瑕疵的自然特性" },
+      {
+        type: "p",
+        text: "皮革是天然材质。每件之间在纹理、色调、印记与颜色上的差异，以及随使用形成的包浆，都是真皮的特征而非瑕疵。日常使用造成的划痕与变软也不属瑕疵。若你不确定某处是否算瑕疵，请拍照发给我们，我们会如实告诉你我们的判断。",
+      },
+      { type: "h", text: "你的法定权利" },
+      {
+        type: "p",
+        text: "本政策任何内容均不删除、削减或限制你在马来西亚消费者保护法律下的任何权利，包括《1999 年消费者保护法》及《2012 年消费者保护（电子交易）条例》。所供商品必须具有可接受的质量、适合其用途，并与描述相符。若商品有瑕疵、损坏、寄错或与描述不符，无论本页写了什么，你的法定救济均可主张；本 30 天政策不会取代或缩短这些权利。",
+      },
+      { type: "h", text: "与质保的关系" },
+      {
+        type: "p",
+        text: "本政策涵盖收货后的前 30 天。我们的 12 个月质保涵盖此后出现的手工与五金瑕疵，另行处理。",
+      },
+    ],
+  },
+  faqs: {
+    en: [
+      {
+        q: "I ordered a belt in the wrong length. Can I return it?",
+        a: "Not under this policy. An incorrectly ordered length is not a fault with the product, so it falls outside the 30-day window for incorrect, damaged, defective or misdescribed items. Please measure before ordering — if you are unsure, message us and we will check the length with you first.",
       },
       {
-        type: "callout",
-        text: "确切的退换期限与退货地址会在订单确认电邮及结账页面中确认。我们刻意不在本页印上固定数字，因为它取决于你下单时适用的快递安排。",
+        q: "The collar is the right size but my dog has outgrown it.",
+        a: "That is not a fault, so it is not covered by this policy. Collars have to be measured for the dog in front of you; our sizing guide explains how, and a growing puppy will need a new collar regardless.",
+      },
+      {
+        q: "The wallet arrived with a scratch on the leather.",
+        a: "Send us your order number and a photograph of the scratch. If it is damage that was there before delivery, it is covered and we will arrange a replacement or refund.",
+      },
+      {
+        q: "How long do I have after delivery?",
+        a: "30 calendar days from the date you receive the order. Please raise the issue as soon as you notice it rather than waiting for the last day, because it is easier for both of us to resolve quickly.",
+      },
+      {
+        q: "Who pays to send the item back?",
+        a: "We do, where the return is because of an incorrect, damaged, defective or misdescribed product. We will tell you the method once the return is approved — please do not arrange your own courier before that.",
+      },
+      {
+        q: "What if the replacement is out of stock?",
+        a: "We will tell you, and you can choose a refund or an exchange for another item of the same value.",
+      },
+      {
+        q: "Does this policy affect my rights under Malaysian consumer law?",
+        a: "No. Nothing here removes, reduces or limits your statutory rights. This policy sits alongside them, and where the law gives you a stronger remedy than this page describes, the law applies.",
+      },
+    ],
+    ms: [
+      {
+        q: "Saya pesan tali pinggang dengan panjang yang salah. Boleh dipulangkan?",
+        a: "Tidak di bawah polisi ini. Panjang yang dipesan dengan salah bukan kecacatan produk, jadi ia di luar tempoh 30 hari untuk barang salah, rosak, cacat atau tidak seperti diterangkan. Sila ukur sebelum memesan — jika tidak pasti, hubungi kami dan kami akan semak panjangnya bersama anda dahulu.",
+      },
+      {
+        q: "Kolar itu saiz yang betul tetapi anjing saya sudah membesar.",
+        a: "Itu bukan kecacatan, jadi ia tidak dilindungi polisi ini. Kolar perlu diukur untuk anjing yang ada di hadapan anda; panduan saiz kami menerangkannya, dan anak anjing yang sedang membesar tetap memerlukan kolar baharu.",
+      },
+      {
+        q: "Dompet tiba dengan calar pada kulitnya.",
+        a: "Hantarkan nombor pesanan dan gambar calar itu. Jika ia kerosakan yang sudah ada sebelum penghantaran, ia dilindungi dan kami akan mengatur penggantian atau bayaran balik.",
+      },
+      {
+        q: "Berapa lama saya ada selepas penghantaran?",
+        a: "30 hari kalendar dari tarikh anda menerima pesanan. Sila kemukakan isu sebaik sahaja anda perasannya dan bukan menunggu hari terakhir, kerana lebih mudah untuk kita berdua menyelesaikannya dengan segera.",
+      },
+      {
+        q: "Siapa menanggung kos menghantar barang kembali?",
+        a: "Kami, jika pemulangan itu disebabkan produk yang salah, rosak, cacat atau tidak seperti diterangkan. Kami akan memberitahu kaedahnya setelah pemulangan diluluskan — sila jangan atur kurier sendiri sebelum itu.",
+      },
+      {
+        q: "Bagaimana jika penggantian kehabisan stok?",
+        a: "Kami akan memberitahu anda, dan anda boleh memilih bayaran balik atau pertukaran dengan barang lain yang sama nilai.",
+      },
+      {
+        q: "Adakah polisi ini menjejaskan hak saya di bawah undang-undang pengguna Malaysia?",
+        a: "Tidak. Tiada apa-apa di sini menghapuskan, mengurangkan atau mengehadkan hak berkanun anda. Polisi ini wujud di sampingnya, dan jika undang-undang memberikan remedi yang lebih kuat daripada yang diterangkan di halaman ini, undang-undang terpakai.",
+      },
+    ],
+    zh: [
+      {
+        q: "我订的皮带长度不对，可以退货吗？",
+        a: "依本政策不可以。订错长度并非商品本身的瑕疵，因此不属于针对寄错、损坏、有瑕疵或与描述不符商品的 30 天范围。请在订购前量好尺寸——若不确定，请联系我们，我们先与你核对长度。",
+      },
+      {
+        q: "项圈尺码是对的，但我的狗长大了。",
+        a: "这不属于瑕疵，因此不在本政策范围内。项圈必须按眼前的狗来量；我们的尺码指南说明了方法，而正在成长的幼犬本来就需要换新的项圈。",
+      },
+      {
+        q: "钱包到货时皮革上有划痕。",
+        a: "请把订单编号和划痕照片发给我们。若属发货前已存在的损坏，即在保障范围内，我们会安排更换或退款。",
+      },
+      {
+        q: "收货后我有多少时间？",
+        a: "自收货当日起 30 个日历日。请在发现问题时立即提出，不要等到最后一天，因为越快处理对双方都更方便。",
+      },
+      {
+        q: "寄回商品的费用由谁承担？",
+        a: "若退货原因是商品寄错、损坏、有瑕疵或与描述不符，由我们承担。退货获批后我们会告知寄回方式——在此之前请勿自行安排物流。",
+      },
+      {
+        q: "如果更换的商品缺货怎么办？",
+        a: "我们会告知你，你可以选择退款，或换成同价值的其他商品。",
+      },
+      {
+        q: "本政策会影响我在马来西亚消费者法律下的权利吗？",
+        a: "不会。本页任何内容都不删除、削减或限制你的法定权利。本政策与法定权利并存；若法律赋予你的救济强于本页所述，则以法律为准。",
       },
     ],
   },

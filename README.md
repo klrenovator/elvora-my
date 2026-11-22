@@ -206,6 +206,28 @@ Evidence labels used throughout: **Verified** (stated on a page fetched),
 **Observed** (visible but unconfirmed), **Not disclosed** (no public source) and
 **Needs verification** (requires company confirmation).
 
+## Returns and refunds
+
+`/en/returns`, `/ms/pemulangan`, `/zh/tui-huan` — **30 calendar days from the date
+the order is received**, covering four cases: the wrong product was sent, the
+product arrived damaged, the product is defective or faulty, or the product does
+not match its description.
+
+It is **not a change-of-mind policy**, and the page says so in a callout rather
+than burying it: an incorrectly ordered belt length or collar size is excluded.
+The request must carry an order number, a stated reason, photographs or video and
+the product details; approval precedes inspection, which precedes refund or
+replacement. Return delivery is on us where the fault is ours.
+
+An explicit clause preserves statutory rights under the Consumer Protection Act
+1999 and the Consumer Protection (Electronic Trade Transactions) Regulations
+2012, and states that the 30 days neither replaces nor shortens them.
+
+`tests/returns.test.ts` (67 assertions) requires all eleven sections and the four
+reasons in all three languages, and fails the build on rights-limiting language
+("no refunds", "all sales final"), change-of-mind promises ("no questions asked",
+"any reason"), and any courier name, shipping rate or contact detail.
+
 ## Warranty
 
 `/en/warranty`, `/ms/jaminan`, `/zh/bao-xiu` — 12 months on workmanship and
