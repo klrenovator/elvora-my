@@ -880,6 +880,42 @@ adds 43 assertions.
 
 **Verification: 21 suites, 1,220 assertions, 198 pages.**
 
+## Phase 4d — returns and refunds policy
+
+**Owner instruction, 2026-11-21:** a 30-day return window counted from the date
+the customer receives the order, for incorrect, damaged, defective or misdescribed
+products only. Not an unconditional change-of-mind policy. Statutory consumer
+rights must remain intact. All three languages.
+
+**Published:** `/en/returns`, `/ms/pemulangan`, `/zh/tui-huan`, rewritten with
+eleven matched sections: qualifying reasons · time limit · what to include ·
+approval · inspection · refunds · replacements · who pays return delivery ·
+natural characteristics that are not faults · statutory rights · relationship to
+the warranty. Seven FAQs per language.
+
+**Statutory clause:** names the Consumer Protection Act 1999 and the Consumer
+Protection (Electronic Trade Transactions) Regulations 2012, states that nothing
+in the policy removes, reduces or limits those rights, and that the 30 days does
+not replace or shorten them.
+
+**Scope boundary, stated on the page itself** in a callout rather than a footnote:
+ordering the wrong belt length or collar size is not a fault and is not covered.
+The category FAQ that previously promised an exchange for a wrong size was
+corrected in all three languages; the warranty FAQ on the same point was aligned
+too. The old "window shown on your order confirmation" hedge was removed because
+it contradicted a fixed 30-day figure.
+
+**Tests:** `tests/returns.test.ts`, 67 assertions — the four reasons and four
+process sections in every language, the statutory clause naming the Act, a
+not-change-of-mind statement in a callout, and a block list that fails the build
+on rights-limiting language, change-of-mind promises, courier names, shipping
+rates or contact details.
+
+**Verification: 22 suites, 1,287 assertions, 198 pages.**
+
+**Untouched, as instructed:** payment gateways, merchant accounts, courier
+integrations, shipping rates and contact details. All remain Phase D.
+
 ## Next task
 
 **Phase 4, second half — location editorial.** The 34 area pages exist and are

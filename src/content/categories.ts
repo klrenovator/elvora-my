@@ -202,7 +202,7 @@ export const categories: Category[] = [
         },
         {
           q: "Can I order a belt as a gift without knowing the size?",
-          a: "A length around the middle of the range is usually safe for most men. If it is wrong, contact us before wearing it and we will advise on an exchange under our returns policy.",
+          a: "A length around the middle of the range is usually safe for most men. Please measure first, because belt length is not something we can exchange for a change of mind. Our 30-day return window covers incorrect, damaged, defective or misdescribed products, and the full terms are on our returns policy page.",
         },
       ],
       ms: [
@@ -216,7 +216,7 @@ export const categories: Category[] = [
         },
         {
           q: "Bolehkah saya memesan tali pinggang sebagai hadiah tanpa tahu saiznya?",
-          a: "Panjang di pertengahan julat biasanya selamat untuk kebanyakan lelaki. Jika tidak padan, hubungi kami sebelum ia dipakai dan kami akan menasihati tentang pertukaran mengikut polisi pemulangan kami.",
+          a: "Panjang di pertengahan julat biasanya selamat untuk kebanyakan lelaki. Sila ukur dahulu, kerana panjang tali pinggang bukan perkara yang boleh ditukar atas sebab bertukar fikiran. Tempoh pemulangan 30 hari kami meliputi produk yang salah, rosak, cacat atau tidak seperti yang diterangkan, dan terma penuhnya ada pada halaman polisi pemulangan kami.",
         },
       ],
       zh: [
@@ -230,7 +230,7 @@ export const categories: Category[] = [
         },
         {
           q: "想送人但不知道尺码，可以买皮带吗？",
-          a: "长度落在系列中段的款式，对多数男性通常都合适。若真的不合，请在佩戴前联系我们，我们会依退换政策说明换货方式。",
+          a: "长度落在系列中段的款式，对多数男性通常都合适。请务必先量好尺寸，因为皮带长度不属于可因改变主意而退换的项目。我们的 30 天退货期涵盖寄错、损坏、瑕疵或与描述不符的商品，完整条款见退货政策页面。",
         },
       ],
     },

@@ -79,6 +79,47 @@ your order confirmation". If a fixed window is wanted (competitors use 14–30
 days), it is a one-line change in `pages-policy.ts` — but it should match what
 the order confirmation actually says.
 
+### E8. Returns and refunds policy ✅ **done this phase**
+
+**Owner instruction, 2026-11-21:** 30 days from the date the customer receives
+the order, covering incorrect, damaged, defective or misdescribed products only —
+explicitly **not** a change-of-mind policy — with statutory rights preserved.
+
+**What shipped:** `/en/returns`, `/ms/pemulangan`, `/zh/tui-huan` rewritten
+end to end with eleven matched sections in all three languages:
+
+1. What can be returned within 30 days — the four qualifying reasons
+2. Time limit — 30 calendar days from delivery, not from ordering
+3. What to include — order number, reason, what is wrong, photos or video, product details
+4. How a return is approved — and why nothing should be posted before it is
+5. Inspection on arrival
+6. Refunds — including the original delivery charge where the fault is ours
+7. Replacements and exchanges — including the out-of-stock path
+8. Who pays return delivery — us, on a qualifying return
+9. Natural characteristics that are not faults
+10. **Your statutory rights** — Consumer Protection Act 1999 and the 2012 Electronic Trade Transactions Regulations, with an explicit non-limitation clause
+11. How this relates to the 12-month warranty
+
+Plus seven FAQs per language, including the two answers customers most need to
+hear plainly: an incorrectly ordered belt length and an outgrown collar are not
+covered.
+
+**Knock-on fixes, because a policy change exposes contradictions elsewhere:**
+
+- The men's belt FAQ promised "an exchange under our returns policy" for a wrong
+  size. That is no longer offered, so all three languages were corrected.
+- The warranty FAQ on the same subject now also points out that ordering the
+  wrong length falls outside the 30 days.
+- The old "the window is on your order confirmation" hedge is gone — it
+  contradicted a fixed 30-day figure.
+
+**Tests:** `tests/returns.test.ts`, 67 assertions. It requires the four reasons in
+all three languages, the four process sections, the statutory rights clause
+naming the Act, and an explicit not-change-of-mind statement. It also fails on
+rights-limiting language ("no refunds", "all sales final", 概不退款…), on
+change-of-mind promises ("no questions asked", "any reason", 无理由退货…) and on
+any courier name, shipping rate or contact detail appearing in the policy.
+
 ### E2. Product page: lead with specification, not adjectives 🔜
 
 **Why:** Bellroy's product cards state what the object **holds** — "5–12+ cards,
@@ -143,7 +184,7 @@ Being clear about the absence of tracking is better than an empty tracker.
 | O6 | "How to measure" diagram | One illustration would beat paragraphs. | Needs original artwork. **Do not copy a competitor's diagram.** |
 | O7 | Gift messaging field | Aspinal and Leatherology both lead with gifting. | Checkout change; affects order schema. Defer past Phase 4. |
 | O8 | Warranty statement | ✅ **Done — see E7.** | — |
-| O9 | Returns window statement | Mackenzie & George offer 90 days free. | **Owner decision.** |
+| O9 | Returns window statement | ✅ **Done — 30 days, see E8.** | — |
 | O10 | Review collection | Dogs & Horses shows 2,373 reviews. | Needs a provider and moderation. Not worth it before sales exist. |
 
 ---
@@ -173,8 +214,8 @@ phase can start cleanly, these are the things that must exist first:
    typically required for merchant onboarding.
 3. **Business bank account** in the same name.
 4. **A courier account with a written rate card**, including COD remittance terms.
-5. **A returns window and a warranty decision** (O8, O9), since both must be
-   published before a gateway will approve a merchant.
+5. ~~A returns window and a warranty decision~~ **✅ both settled** — 30 days for
+   incorrect/damaged/defective/misdescribed items, and a 12-month warranty.
 
 Recommended gateway when approved: **Billplz Basic** — RM1.25 flat FPX, free
 annual plan, next-business-day FPX payout. See
@@ -187,13 +228,14 @@ RM69.44 crossover point.
 
 1. ✅ Sizing guide (E1) — done, now derived from the catalogue.
 2. ✅ Warranty (E7) — done.
-3. **E2 specification block** — highest value per hour, no new data.
-4. **E4 material honesty block** — our only real differentiator.
-5. **E3 belt guidance** — closes the second sizing gap.
-6. **E6 order tracking clarity** — small, removes a support question.
-7. E5 when the owner supplies contact details.
-8. Optional tier as the owner chooses.
-9. Phase D only after its prerequisites are met.
+3. ✅ Returns policy (E8) — done.
+4. **E2 specification block** — highest value per hour, no new data.
+5. **E4 material honesty block** — our only real differentiator.
+6. **E3 belt guidance** — closes the second sizing gap.
+7. **E6 order tracking clarity** — small, removes a support question.
+8. E5 when the owner supplies contact details.
+9. Optional tier as the owner chooses.
+10. Phase D only after its prerequisites are met.
 
 ---
 
@@ -207,6 +249,8 @@ Not traffic — traffic is a lagging and noisy signal for a store with no orders
 | Products claiming a grade not in the catalogue record | 0 — test-enforced |
 | Sizing or fit guidance published for every sized category | 3 of 3 (collars ✅, belts 🔜, bags n/a) |
 | Warranty published, and identical on the policy page and every product page | ✅ test-enforced |
+| Returns policy states one fixed window, in all three languages | ✅ 30 days, test-enforced |
+| Rights-limiting or change-of-mind phrasing in the returns policy | 0 — test-enforced |
 | Invented prices, rates, couriers or contact details on the site | 0 — test-enforced |
 | Languages with complete, non-machine-translated copy | 3 of 3 |
 | Dead internal links | 0 — build fails |

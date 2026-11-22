@@ -113,7 +113,7 @@ export const warrantyPage: ContentPage = {
       },
       {
         q: "The belt is too long. Can you shorten it under warranty?",
-        a: "Alteration is not a warranty matter, and a belt that has been cut cannot be returned. Please measure before ordering, or ask us to check the length with you first.",
+        a: "Alteration is not a warranty matter, and a belt that has been cut cannot be returned. Ordering the wrong length is not a fault with the product, so it is outside the 30-day returns policy as well. Please measure before ordering, or ask us to check the length with you first.",
       },
       {
         q: "Do you cover a load or pull rating on dog collars?",
@@ -139,7 +139,7 @@ export const warrantyPage: ContentPage = {
       },
       {
         q: "Tali pinggang terlalu panjang. Boleh dipendekkan di bawah jaminan?",
-        a: "Pengubahsuaian bukan perkara jaminan, dan tali pinggang yang telah dipotong tidak boleh dipulangkan. Sila ukur sebelum memesan, atau minta kami semak panjangnya bersama anda dahulu.",
+        a: "Pengubahsuaian bukan perkara jaminan, dan tali pinggang yang telah dipotong tidak boleh dipulangkan. Memesan panjang yang salah bukan kecacatan produk, jadi ia juga di luar polisi pemulangan 30 hari. Sila ukur sebelum memesan, atau minta kami semak panjangnya bersama anda dahulu.",
       },
       {
         q: "Adakah anda melindungi penarafan beban atau tarikan pada kolar anjing?",
@@ -165,7 +165,7 @@ export const warrantyPage: ContentPage = {
       },
       {
         q: "皮带太长，可以在质保内改短吗？",
-        a: "改装不属于质保事项，而且裁短后的皮带无法退货。请在订购前量好尺寸，或先让我们与你一起核对长度。",
+        a: "改装不属于质保事项，而且裁短后的皮带无法退货。订错长度并非商品瑕疵，因此同样不在 30 天退货政策之内。请在订购前量好尺寸，或先让我们与你一起核对长度。",
       },
       {
         q: "狗狗项圈有承重或拉力规格的质保吗？",
