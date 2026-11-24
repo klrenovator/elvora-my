@@ -181,7 +181,7 @@ check("every published product is covered, so no product page renders a blank pr
 
 check("the warranty page does not restate a return window", () => {
   const en = warrantyPage.blocks.en
-    .map((block) => (block.type === "list" ? block.items.join(" ") : block.type === "sizes" ? "" : block.text))
+    .map((block) => (block.type === "list" ? block.items.join(" ") : block.type === "table" ? "" : block.text))
     .join(" ")
     .toLowerCase();
   // The return window lives in the returns policy; duplicating a number here

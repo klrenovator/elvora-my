@@ -206,6 +206,24 @@ Evidence labels used throughout: **Verified** (stated on a page fetched),
 **Observed** (visible but unconfirmed), **Not disclosed** (no public source) and
 **Needs verification** (requires company confirmation).
 
+## Wallet sizing and fit guide
+
+`/en/wallet-sizing`, `/ms/panduan-saiz-dompet`, `/zh/qian-bao-chi-cun-zhi-nan`.
+
+Written because the shop will not publish a dimension nobody measured: a copied
+or averaged wallet size would put a figure in front of a customer who buys
+against it, making the product misdescribed.
+
+Instead the page gives verified reference points — **Bank Negara Malaysia**
+banknote dimensions (RM100 150 × 69 mm down to RM1 120 × 65 mm), the 3 mm
+clearance a folded note needs, a **labelled** market benchmark for a slim bifold
+(3.4 × 4.6 × 0.5 in, converted at 25.4 mm per inch), card-capacity guidance, and
+a method for measuring the wallet the buyer already owns.
+
+`tests/wallet-sizing.test.ts` (44 assertions) pins every banknote figure to the
+BNM source, proves the derived totals are derived rather than typed, and fails if
+any language ever presents a dimension as ours.
+
 ## Product specification strip
 
 Every product page opens with a compact specification strip under the short

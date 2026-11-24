@@ -5,8 +5,12 @@ export type Block =
   | { type: "h"; text: string }
   | { type: "list"; items: string[] }
   | { type: "callout"; text: string }
-  /** Renders the dog collar size table. Content lives in pages-sizing.ts. */
-  | { type: "sizes" };
+  /**
+   * Renders a data table owned by a specific page. `table` selects which, so one
+   * block type can serve the collar chart and the banknote chart without either
+   * page importing the other's renderer.
+   */
+  | { type: "table"; table: "collar-sizes" | "banknotes" };
 
 export interface ContentPage {
   slug: Record<Locale, string>;

@@ -196,7 +196,7 @@ const bodyText = locales
     dogSizingPage.blocks[locale]
       .map((block) => {
         if (block.type === "list") return block.items.join(" ");
-        if (block.type === "sizes") return "";
+        if (block.type === "table") return "";
         return block.text;
       })
       .join(" "),
@@ -265,7 +265,7 @@ for (const claim of bannedClaims) {
 
 check("the page says plainly that no load rating is published", () => {
   const en = dogSizingPage.blocks.en
-    .map((block) => (block.type === "list" ? block.items.join(" ") : block.type === "sizes" ? "" : block.text))
+    .map((block) => (block.type === "list" ? block.items.join(" ") : block.type === "table" ? "" : block.text))
     .join(" ")
     .toLowerCase();
   return en.includes("do not publish a load or pull capacity");

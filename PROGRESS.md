@@ -948,6 +948,42 @@ languages, and that no strength claim can appear on any product in any language.
 
 **Verification: 23 suites, 1,369 assertions, 198 pages.**
 
+## Phase 4f — wallet sizing and fit guide
+
+**The request:** fill in the cognac bifold wallet's dimensions by copying what
+popular market wallets measure.
+
+**Why that was refused, and what was built instead:** a wallet's dimensions
+describe a specific object in the workshop. Copying a competitor's figures would
+put a number in front of a customer who then buys against it — making the product
+misdescribed and the subsequent return our fault. A measurement nobody took is
+worse than no measurement, so the catalogue still says "being measured".
+
+Instead, `/en/wallet-sizing`, `/ms/panduan-saiz-dompet` and
+`/zh/qian-bao-chi-cun-zhi-nan` answer the buyer's real question with verified
+data:
+
+- **Banknote dimensions from Bank Negara Malaysia** — RM100 150×69, RM50 145×69,
+  RM20 145×65, RM10 140×65, RM5 135×65 (polymer), RM1 120×65 (polymer).
+- **Pocket clearance derived in code** — tallest note 69 mm plus 3 mm = 72 mm of
+  internal height for a bifold that does not crease a RM100.
+- **A labelled market benchmark** — 3.4 × 4.6 × 0.5 in, converted at 25.4 mm per
+  inch to 86 × 117 × 13 mm, stated in every language as another maker's figure
+  and explicitly not ours.
+- **Card capacity** — 5–12 before distortion; the seam fails before the leather;
+  over-packing is wear, not a warranty matter.
+- **A four-step method** for measuring the wallet the buyer already owns.
+
+**Tests:** `tests/wallet-sizing.test.ts`, 44 assertions — every banknote figure
+pinned to the BNM source, the derived totals proven derived, the disclaimer
+required in all three languages, and a check that fails if any phrase ever
+presents a dimension as ours.
+
+**Verification: 24 suites, 1,413 assertions, 201 pages.**
+
+**Still deferred:** payment gateways, merchant accounts, courier integrations,
+shipping rates and contact details.
+
 ## Next task
 
 **Phase 4, second half — location editorial.** The 34 area pages exist and are

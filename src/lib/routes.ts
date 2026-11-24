@@ -72,6 +72,13 @@ const routes = {
   warranty: {
     path: { en: ["warranty"], ms: ["jaminan"], zh: ["bao-xiu"] },
   },
+  walletSizing: {
+    path: {
+      en: ["wallet-sizing"],
+      ms: ["panduan-saiz-dompet"],
+      zh: ["qian-bao-chi-cun-zhi-nan"],
+    },
+  },
   dogSizing: {
     path: {
       en: ["dog-collar-sizing"],

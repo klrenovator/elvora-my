@@ -197,7 +197,7 @@ export const dogSizingPage: ContentPage & SizingCopy = {
           "Measure twice. A one-centimetre error is the difference between a collar that sits properly and one that is always on its last hole.",
         ],
       },
-      { type: "sizes" },
+      { type: "table", table: "collar-sizes" },
       { type: "h", text: "Allow room to breathe" },
       {
         type: "p",
@@ -244,7 +244,7 @@ export const dogSizingPage: ContentPage & SizingCopy = {
           "Ukur dua kali. Kesilapan satu sentimeter menentukan sama ada kolar duduk elok atau sentiasa berada di lubang terakhir.",
         ],
       },
-      { type: "sizes" },
+      { type: "table", table: "collar-sizes" },
       { type: "h", text: "Beri ruang untuk bernafas" },
       {
         type: "p",
@@ -291,7 +291,7 @@ export const dogSizingPage: ContentPage & SizingCopy = {
           "量两次。一厘米的误差，就是「戴起来刚好」和「永远只用最后一个孔」的区别。",
         ],
       },
-      { type: "sizes" },
+      { type: "table", table: "collar-sizes" },
       { type: "h", text: "留出呼吸空间" },
       {
         type: "p",
