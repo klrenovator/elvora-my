@@ -1,6 +1,7 @@
 import { products } from "@/content/products";
 import { categories } from "@/content/categories";
 import type { Product } from "@/content/types";
+import { isPendingValue } from "@/lib/spec-summary";
 
 /**
  * Catalogue integrity checks.
@@ -71,6 +72,8 @@ export function validateCatalogue(list: Product[] = products): ValidationIssue[]
 
     if (product.images.length === 0) fail("at least one image is required");
     if (!product.sku.trim()) fail("SKU is required");
+
+
   }
 
   // Cross-language slug collisions inside the same category are a duplicate
@@ -90,6 +93,43 @@ export function validateCatalogue(list: Product[] = products): ValidationIssue[]
   }
 
   return issues;
+}
+
+/**
+ * Content debt: published products whose specification strip would collapse to a
+ * single chip, because nothing beyond the leather grade has been measured yet.
+ *
+ * Deliberately **not** part of `validateCatalogue`, and therefore not fatal.
+ * Blocking a deploy until the owner can put a ruler against a wallet would trade
+ * one real problem (a thin page) for a worse one (the shop cannot ship a fix to
+ * anything else). The page stays honest instead: the strip is suppressed and the
+ * reader is told measurements are in progress.
+ *
+ * It is reported loudly and pinned by a test, so the debt is visible and cannot
+ * quietly grow. When a product gains a dimension this list shortens by itself.
+ */
+export interface ContentDebt {
+  productId: string;
+  missing: string;
+}
+
+function stripWouldBeBare(product: Product): boolean {
+  const confirmed = product.specifications.flatMap((group) =>
+    group.items.filter((item) => !isPendingValue(item.value.en)),
+  );
+  const beyondGrade = confirmed.filter(
+    (item) => !/^(leather|material|made in|bahan|kulit)$/i.test(item.label.en.trim()),
+  );
+  return beyondGrade.length === 0;
+}
+
+export function catalogueContentDebt(list: Product[] = products): ContentDebt[] {
+  return list
+    .filter((product) => product.status === "published" && stripWouldBeBare(product))
+    .map((product) => ({
+      productId: product.id,
+      missing: "no confirmed dimension, width or capacity beyond the leather grade",
+    }));
 }
 
 /** Throws on any issue. Called from build-time page generation. */
