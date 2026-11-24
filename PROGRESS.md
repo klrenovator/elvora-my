@@ -916,6 +916,38 @@ rates or contact details.
 **Untouched, as instructed:** payment gateways, merchant accounts, courier
 integrations, shipping rates and contact details. All remain Phase D.
 
+## Phase 4e — product specification strip
+
+**Roadmap item E2.** A compact specification strip now sits in the buy panel,
+directly under the short description and above the purchase controls.
+
+It leads with the leather grade, then priorities in order: capacity → fit (neck
+range, length choices) → physical dimensions → hardware. Capped at five rows.
+
+**Real values only.** Rows are read from the catalogue; anything the catalogue
+hedges as "Being measured" is dropped rather than presented as a feature, and the
+page says "Measuring in progress" once below the strip. Duplicate material and
+origin rows are suppressed, and instruction rows like "How to measure" are
+excluded because they consume a slot a real dimension should occupy.
+
+### The gap it exposed
+
+`bifold-wallet-cognac` publishes a leather grade and no measured dimension. The
+new validation rule correctly refused to build it — but a fatal rule would have
+blocked every unrelated fix until the owner measures a wallet. The rule was kept
+and moved out of the throwing path:
+
+- `catalogueContentDebt()` reports it separately as content debt.
+- The page stays honest: no strip, and a plain "Measuring in progress".
+- A test pins the debt at one product, so it cannot quietly grow.
+- When the wallet gains a dimension, the list shortens by itself.
+
+**Tests:** `tests/spec-summary.test.ts`, 82 assertions, including that no pending
+value reaches the strip in any language, that chip counts match across all three
+languages, and that no strength claim can appear on any product in any language.
+
+**Verification: 23 suites, 1,369 assertions, 198 pages.**
+
 ## Next task
 
 **Phase 4, second half — location editorial.** The 34 area pages exist and are

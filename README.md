@@ -206,6 +206,28 @@ Evidence labels used throughout: **Verified** (stated on a page fetched),
 **Observed** (visible but unconfirmed), **Not disclosed** (no public source) and
 **Needs verification** (requires company confirmation).
 
+## Product specification strip
+
+Every product page opens with a compact specification strip under the short
+description: leather grade first, then capacity, fit ranges, dimensions and
+hardware, capped at five rows.
+
+Values are read from the catalogue and nothing else. A row the catalogue still
+hedges as "Being measured" is dropped from the strip rather than dressed up as a
+feature, and the page says so once beneath it. Duplicate material rows and
+instructional rows ("How to measure") are filtered out so a real dimension gets
+the slot.
+
+`catalogueContentDebt()` reports published products whose strip would collapse to
+the grade alone. It is deliberately **not** a build error — blocking a deploy
+until the owner measures a wallet would stop every unrelated fix — but it is
+reported and pinned by a test so it cannot quietly grow. One product is currently
+on that list: the cognac bifold wallet.
+
+`tests/spec-summary.test.ts` (82 assertions) enforces no pending text in any
+strip, grade-first ordering, matching chip counts across the three languages, and
+that no strength claim can reach any strip.
+
 ## Returns and refunds
 
 `/en/returns`, `/ms/pemulangan`, `/zh/tui-huan` — **30 calendar days from the date

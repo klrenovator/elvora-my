@@ -13,6 +13,7 @@ import {
 } from "@/lib/catalogue/storefront";
 import { assertCatalogueValid } from "@/lib/validate-catalogue";
 import { warranty } from "@/content/warranty";
+import { pendingSpecCount, specChips } from "@/lib/spec-summary";
 import { Breadcrumbs, categoryRoutes } from "@/components/category-cards";
 import { FaqAccordion } from "@/components/faq-accordion";
 import { ContactChannels } from "@/components/contact-channels";
@@ -118,6 +119,8 @@ export default async function ProductPage({
   const faqs = product.faqs[locale];
   const path = pathFor("product", locale, { slug: product.slug[locale] });
   const gallery = product.images;
+  const chips = specChips(product, locale);
+  const pendingCount = pendingSpecCount(product, locale);
 
   return (
     <>
@@ -194,6 +197,31 @@ export default async function ProductPage({
               <p className="mt-4 max-w-md text-[0.9375rem] leading-[1.7] text-[color:var(--color-ink-body)]">
                 {product.shortDescription[locale]}
               </p>
+
+              {/* Specification strip — what the object is, before how it feels.
+                  Values come only from the catalogue; anything still unmeasured
+                  is omitted here and disclosed once below the fold instead of
+                  being dressed up as a feature. */}
+              {chips.length > 1 ? (
+                <dl className="mt-6 grid grid-cols-2 gap-x-5 gap-y-3 border-y border-[color:var(--color-line)] py-4">
+                  {chips.map((chip, index) => (
+                    <div key={`${chip.label}-${index}`}>
+                      <dt className="text-[0.625rem] tracking-[0.12em] uppercase text-[color:var(--color-ink-muted)]">
+                        {chip.label}
+                      </dt>
+                      <dd className="mt-0.5 text-[0.8125rem] leading-snug text-[color:var(--color-ink-strong)]">
+                        {chip.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+
+              {pendingCount > 0 ? (
+                <p className="mt-3 text-[0.75rem] leading-relaxed text-[color:var(--color-mist)]">
+                  {dict.product.dimensionPending}
+                </p>
+              ) : null}
 
               <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-[color:var(--color-line)] py-3 text-[0.75rem]">
                 <span className="text-[color:var(--color-ink-muted)]">

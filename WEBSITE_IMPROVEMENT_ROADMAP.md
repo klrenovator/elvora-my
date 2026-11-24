@@ -120,17 +120,44 @@ rights-limiting language ("no refunds", "all sales final", 概不退款…), on
 change-of-mind promises ("no questions asked", "any reason", 无理由退货…) and on
 any courier name, shipping rate or contact detail appearing in the policy.
 
-### E2. Product page: lead with specification, not adjectives 🔜
+### E2. Product page: lead with specification, not adjectives ✅ **done this phase**
 
 **Why:** Bellroy's product cards state what the object **holds** — "5–12+ cards,
-flat bills, coins". That answers the buyer's real question. Our pages have
-dimensions but bury them under prose.
-**Do:** on every product page, put a compact specification block directly under
-the title and price: leather grade, dimensions, hardware, strap width, capacity
-where applicable. Above the descriptive paragraphs, not below them.
-**Cost:** no new data — the fields already exist.
-**Test:** every published product renders a specification block with at least
-leather grade and one dimension; no product renders an empty block.
+flat bills, coins". That answers the buyer's real question. Our pages carried the
+same facts in a specification table far below the description, where a customer
+scrolling on a phone never reaches them.
+
+**What shipped:** a specification strip directly under the short description in
+the buy panel, before the price controls. It always leads with the leather grade —
+the one thing every competitor hides — then prioritises, in order: capacity,
+fit (neck range, length choices), physical dimensions, then hardware. Capped at
+five rows, because a wall of chips is not a summary.
+
+**Real values only.** Every row is read from the catalogue. The catalogue's own
+hedge ("Being measured — ask us and we will send the figures") is detected and
+the row is **dropped** rather than dressed up as a feature; the page then says
+"Measuring in progress" once, below the strip. The catalogue's duplicate material
+and origin rows are suppressed so the grade is not printed twice, and instruction
+rows like "How to measure" are kept out, because they take a slot from a real
+dimension.
+
+**A real gap surfaced, and was not papered over.** The cognac bifold wallet has
+no measured dimensions — it publishes a leather grade and nothing else. The build
+refused to generate it, which is correct in principle but would block every other
+fix in the shop until the owner can put a ruler against a wallet. So the rule was
+kept but moved out of the fatal path: `catalogueContentDebt()` reports it
+separately, the page stays honest, and a test pins the debt at one product so it
+cannot quietly grow.
+
+**Tests:** `tests/spec-summary.test.ts`, 82 assertions — no pending value reaches
+the strip in any language, the grade always leads, no duplicated or instructional
+rows, chip counts match across all three languages, and no strength claim
+("pull capacity", "tensile", "escape-proof") can appear in any strip on any
+product, in any language.
+
+⚠ **Owner action:** measure the cognac bifold wallet — length, width, thickness,
+and how many notes and cards it holds. That is the only thing standing between it
+and a full specification strip.
 
 ### E3. Fit and dimension disclosure on belts 🔜
 
@@ -229,9 +256,9 @@ RM69.44 crossover point.
 1. ✅ Sizing guide (E1) — done, now derived from the catalogue.
 2. ✅ Warranty (E7) — done.
 3. ✅ Returns policy (E8) — done.
-4. **E2 specification block** — highest value per hour, no new data.
-5. **E4 material honesty block** — our only real differentiator.
-6. **E3 belt guidance** — closes the second sizing gap.
+4. ✅ Specification strip (E2) — done.
+5. **E3 belt guidance** — highest value per hour, no new data.
+6. **E4 material honesty block** — our only real differentiator.
 7. **E6 order tracking clarity** — small, removes a support question.
 8. E5 when the owner supplies contact details.
 9. Optional tier as the owner chooses.
