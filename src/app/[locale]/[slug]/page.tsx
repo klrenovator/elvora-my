@@ -390,6 +390,7 @@ function ContentView({
     "leather-guide": ["mens-wallets", "mens-belts", "ladies-handbags", "dog-collars"],
     "care-guide": ["mens-wallets", "ladies-handbags", "dog-leashes", "ladies-belts"],
     faq: ["mens-wallets", "ladies-handbags", "dog-collars", "dog-collar-leash-sets"],
+    "wallet-sizing": ["mens-wallets", "mens-belts", "ladies-handbags"],
     "dog-sizing": ["dog-collars", "dog-leashes", "dog-collar-leash-sets"],
     warranty: ["mens-wallets", "mens-belts", "ladies-handbags", "dog-collars"],
     shipping: ["mens-wallets", "mens-belts", "ladies-handbags", "dog-leashes"],

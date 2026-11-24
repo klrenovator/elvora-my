@@ -157,7 +157,44 @@ product, in any language.
 
 ⚠ **Owner action:** measure the cognac bifold wallet — length, width, thickness,
 and how many notes and cards it holds. That is the only thing standing between it
-and a full specification strip.
+and a full specification strip. In the meantime the **wallet sizing guide (E9)**
+gives the buyer everything they need to judge a wallet without it.
+
+### E9. Wallet sizing and fit guide ✅ **done this phase**
+
+**The problem it solves.** The cognac bifold wallet has no measured dimensions,
+and the request was to fill them in with figures from popular market wallets. That
+cannot be done: a wallet's dimensions describe *a specific object in the workshop*.
+Copying a competitor's numbers, or averaging the market, would produce a figure
+the customer buys against — and then the return is our fault, and the product is
+misdescribed. A measurement nobody took is worse than no measurement.
+
+**What shipped instead** — `/en/wallet-sizing`, `/ms/panduan-saiz-dompet`,
+`/zh/qian-bao-chi-cun-zhi-nan` — a page that answers the buyer's real question
+without inventing anything:
+
+- **Verified banknote dimensions from Bank Negara Malaysia**: RM100 150 × 69 mm,
+  RM50 145 × 69 mm, RM20 145 × 65, RM10 140 × 65, RM5 135 × 65 (polymer),
+  RM1 120 × 65 (polymer). Checked 2026-11-21.
+- **Derived clearance maths**: the tallest note is 69 mm, so a bifold's note
+  pocket needs 72 mm of internal height — note height plus a 3 mm clearance.
+  Derived in code from the table, not typed as a total.
+- **A labelled market benchmark** for a slim bifold: 3.4 × 4.6 × 0.5 in, converted
+  at exactly 25.4 mm per inch to 86 × 117 × 13 mm. Every language states plainly
+  that this is another maker's published figure and **not** our wallet.
+- **Card capacity guidance**: 5–12 cards before distortion, the seam fails before
+  the leather, and over-packing is wear rather than a warranty matter.
+- **A four-step method** to measure the wallet the buyer already owns.
+
+**Tests:** `tests/wallet-sizing.test.ts`, 44 assertions. It pins every banknote
+figure against the BNM source, proves the longest note and pocket height are
+derived rather than hard-coded, requires the "not our measurement" disclaimer in
+all three languages, and fails if any phrase ever presents a dimension as ours
+(`our wallet is N mm`, `dompet kami berukuran N`, `我们的钱包尺寸为 N`).
+
+**Owner action:** measure the actual wallet and put the figures in the catalogue —
+the strip and the guide then fill in automatically. The guide exists so the shop
+is useful before that happens.
 
 ### E3. Fit and dimension disclosure on belts 🔜
 
@@ -257,12 +294,13 @@ RM69.44 crossover point.
 2. ✅ Warranty (E7) — done.
 3. ✅ Returns policy (E8) — done.
 4. ✅ Specification strip (E2) — done.
-5. **E3 belt guidance** — highest value per hour, no new data.
-6. **E4 material honesty block** — our only real differentiator.
-7. **E6 order tracking clarity** — small, removes a support question.
-8. E5 when the owner supplies contact details.
-9. Optional tier as the owner chooses.
-10. Phase D only after its prerequisites are met.
+5. ✅ Wallet sizing guide (E9) — done.
+6. **E3 belt guidance** — highest value per hour, no new data.
+7. **E4 material honesty block** — our only real differentiator.
+8. **E6 order tracking clarity** — small, removes a support question.
+9. E5 when the owner supplies contact details.
+10. Optional tier as the owner chooses.
+11. Phase D only after its prerequisites are met.
 
 ---
 

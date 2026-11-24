@@ -42,7 +42,7 @@ function bodyText(locale: (typeof locales)[number]): string {
   return returnsPage.blocks[locale]
     .map((block) => {
       if (block.type === "list") return block.items.join(" \n ");
-      if (block.type === "sizes") return "";
+      if (block.type === "table") return "";
       return block.text;
     })
     .join(" \n ");
@@ -291,7 +291,7 @@ check("the warranty page defers to this page rather than restating a window", ()
   const warrantyText = locales
     .map((locale) =>
       warrantyPage.blocks[locale]
-        .map((block) => (block.type === "list" ? block.items.join(" ") : block.type === "sizes" ? "" : block.text))
+        .map((block) => (block.type === "list" ? block.items.join(" ") : block.type === "table" ? "" : block.text))
         .concat((warrantyPage.faqs?.[locale] ?? []).map((item) => `${item.q} ${item.a}`))
         .join(" "),
     )

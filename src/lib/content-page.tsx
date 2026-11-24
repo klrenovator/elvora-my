@@ -7,6 +7,7 @@ import { getDictionary } from "@/lib/dictionary";
 import { pathFor } from "@/lib/routes";
 import { contact, isConfigured } from "@/lib/site";
 import { collarSizes, dogSizingPage, formatInches } from "@/content/pages-sizing";
+import { banknoteColumns, malaysianBanknotes, substrateLabel } from "@/content/pages-wallet-sizing";
 
 /** Renders an editorial page body from typed blocks, in the active language. */
 export function PageBlocks({ page, locale }: { page: ContentPage; locale: Locale }) {
@@ -36,7 +37,39 @@ export function PageBlocks({ page, locale }: { page: ContentPage; locale: Locale
 
 function BlockView({ block, locale }: { block: Block; locale: Locale }): ReactNode {
   switch (block.type) {
-    case "sizes": {
+    case "table":
+      return block.table === "banknotes" ? (
+        <BanknoteTable locale={locale} />
+      ) : (
+        <CollarSizeTable locale={locale} />
+      );
+    case "h":
+      return <h2 className="font-display first:mt-0">{block.text}</h2>;
+    case "p":
+      return <p>{block.text}</p>;
+    case "list":
+      return (
+        <ul className="my-5 space-y-2.5 pl-0">
+          {block.items.map((item, index) => (
+            <li key={index} className="flex gap-3 text-[0.9375rem] leading-relaxed">
+              <span aria-hidden="true" className="mt-[0.6em] h-px w-4 shrink-0 bg-[color:var(--color-clay)]" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      );
+    case "callout":
+      return (
+        <p className="my-8 border-l-2 border-[color:var(--color-cognac)]/50 bg-[color:var(--color-cream)]/60 px-4 py-4 text-[0.9375rem] leading-relaxed text-[color:var(--color-ink-body)]">
+          {block.text}
+        </p>
+      );
+    default:
+      return null;
+  }
+}
+
+function CollarSizeTable({ locale }: { locale: Locale }) {
       const copy = dogSizingPage;
       const cols = copy.columns[locale];
       return (
@@ -88,31 +121,57 @@ function BlockView({ block, locale }: { block: Block; locale: Locale }): ReactNo
           </p>
         </figure>
       );
-    }
-    case "h":
-      return <h2 className="font-display first:mt-0">{block.text}</h2>;
-    case "p":
-      return <p>{block.text}</p>;
-    case "list":
-      return (
-        <ul className="my-5 space-y-2.5 pl-0">
-          {block.items.map((item, index) => (
-            <li key={index} className="flex gap-3 text-[0.9375rem] leading-relaxed">
-              <span aria-hidden="true" className="mt-[0.6em] h-px w-4 shrink-0 bg-[color:var(--color-clay)]" />
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      );
-    case "callout":
-      return (
-        <p className="my-8 border-l-2 border-[color:var(--color-cognac)]/50 bg-[color:var(--color-cream)]/60 px-4 py-4 text-[0.9375rem] leading-relaxed text-[color:var(--color-ink-body)]">
-          {block.text}
-        </p>
-      );
-    default:
-      return null;
-  }
+}
+
+/**
+ * Malaysian banknote dimensions, verified from Bank Negara Malaysia.
+ *
+ * The table is deliberately a reference table, not a product specification: the
+ * page's whole argument is that a wallet's own dimensions must be measured on the
+ * piece, and this table is what the buyer measures *against*.
+ */
+function BanknoteTable({ locale }: { locale: Locale }) {
+  const cols = banknoteColumns[locale];
+  const substrate = substrateLabel[locale];
+  return (
+    <figure className="my-8">
+      <figcaption className="mb-3 text-[0.8125rem] tracking-[0.12em] uppercase text-[color:var(--color-ink-muted)]">
+        Bank Negara Malaysia
+      </figcaption>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[26rem] border-collapse text-left text-[0.875rem]">
+          <thead>
+            <tr className="border-b border-[color:var(--color-line-strong)]">
+              <th scope="col" className="py-2.5 pr-4 font-medium text-[color:var(--color-ink-strong)]">
+                {cols.denomination}
+              </th>
+              <th scope="col" className="py-2.5 pr-4 font-medium text-[color:var(--color-ink-strong)]">
+                {cols.size}
+              </th>
+              <th scope="col" className="py-2.5 font-medium text-[color:var(--color-ink-strong)]">
+                {cols.substrate}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {malaysianBanknotes.map((note) => (
+              <tr key={note.denomination} className="border-b border-[color:var(--color-line)] last:border-0">
+                <td className="py-2.5 pr-4 font-medium text-[color:var(--color-ink-strong)]">
+                  {note.denomination}
+                </td>
+                <td className="py-2.5 pr-4 tabular-nums text-[color:var(--color-ink-body)]">
+                  {note.lengthMm} × {note.heightMm} mm
+                </td>
+                <td className="py-2.5 text-[color:var(--color-ink-body)]">
+                  {substrate[note.substrate] ?? note.substrate}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </figure>
+  );
 }
 
 /**
